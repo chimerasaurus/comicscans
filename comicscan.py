@@ -535,6 +535,26 @@ def detect_page_bounds(image, dpi=300):
             spine_col = cut_col
             bleed_method = method
 
+    # Strategy 3: Secondary trim — if after the primary bleed cut the page
+    # is still wider than expected, trim the opposite edge. This handles
+    # scans where the comic was opened wide enough that a small amount of
+    # the adjacent page is visible on BOTH sides of the spine.
+    expected_page_px = int(dpi * COMIC_PAGE_WIDTH_INCHES)
+    content_width = right - left
+    excess = content_width - expected_page_px
+    if spine_col is not None and excess > 15:
+        # Determine which side was already cropped and trim the opposite
+        top_margin = top
+        bottom_margin = h - bottom
+        if bottom_margin > top_margin:
+            # Non-rotated: primary crop was on right, trim right further
+            right = right - excess
+        else:
+            # Rotated: primary crop was on left, trim right edge
+            right = right - excess
+        if bleed_method:
+            bleed_method += '+trim'
+
     # Detect skew angle on the cropped content region
     cropped_gray = gray[top:bottom, left:right]
     angle = detect_skew(cropped_gray)
