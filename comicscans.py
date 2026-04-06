@@ -3,7 +3,7 @@
 comicscans.py — Process raw comic book scans into clean, aligned page images.
 
 Usage:
-    python3 comicscans.py <input_dir> [--output <output_dir>] [--quality 93] [--preview]
+    python3 comicscans.py <input_dir> [--output <output_dir>] [--format jpg|webp] [--quality 85] [--preview]
 
 Rotation options (for upside-down pages):
     --rotate 2,4,6,8       Rotate specific pages 180°
@@ -636,15 +636,23 @@ def normalize_dimensions(pages, target_w, target_h):
 # Output
 # ---------------------------------------------------------------------------
 
-def save_pages(pages, output_dir, quality, dpi):
-    """Save processed pages as JPEG files."""
+def save_pages(pages, output_dir, quality, dpi, fmt='jpg', lossless=False):
+    """Save processed pages as JPEG or WebP files."""
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
+    ext = 'webp' if fmt == 'webp' else 'jpg'
+
     for i, page in enumerate(pages):
-        filename = output_path / f"Scan {i}.jpg"
+        filename = output_path / f"Scan {i}.{ext}"
         img = Image.fromarray(cv2.cvtColor(page, cv2.COLOR_BGR2RGB))
-        img.save(str(filename), 'JPEG', quality=quality, dpi=(dpi, dpi))
+        if fmt == 'webp':
+            if lossless:
+                img.save(str(filename), 'WEBP', lossless=True, method=4)
+            else:
+                img.save(str(filename), 'WEBP', quality=quality, method=4)
+        else:
+            img.save(str(filename), 'JPEG', quality=quality, dpi=(dpi, dpi))
         size_mb = filename.stat().st_size / (1024 * 1024)
         print(f"  Saved {filename.name} ({img.width}x{img.height}, {size_mb:.1f} MB)")
 
@@ -678,8 +686,8 @@ def preview_pages(pages, indices=None):
 # Main pipeline
 # ---------------------------------------------------------------------------
 
-def process(input_dir, output_dir=None, quality=93, preview=False,
-            pages_to_rotate=None, auto_rotate=False):
+def process(input_dir, output_dir=None, quality=85, preview=False,
+            pages_to_rotate=None, auto_rotate=False, fmt='jpg', lossless=False):
     """Main processing pipeline."""
     input_path = Path(input_dir)
 
@@ -779,7 +787,7 @@ def process(input_dir, output_dir=None, quality=93, preview=False,
 
     # Step 4: Save
     print("Step 4: Saving processed pages...")
-    saved_path = save_pages(normalized, output_dir, quality, dpi)
+    saved_path = save_pages(normalized, output_dir, quality, dpi, fmt, lossless)
     print()
     print(f"Done! {len(normalized)} pages saved to {saved_path}")
     return saved_path
@@ -792,8 +800,12 @@ def main():
                         help='Directory containing raw scan images')
     parser.add_argument('--output', '-o',
                         help='Output directory (default: output/<input_name>)')
-    parser.add_argument('--quality', '-q', type=int, default=93,
-                        help='JPEG quality 1-100 (default: 93)')
+    parser.add_argument('--format', '-f', choices=['jpg', 'webp'], default='jpg',
+                        help='Output image format (default: jpg)')
+    parser.add_argument('--quality', '-q', type=int, default=85,
+                        help='Image quality 1-100 (default: 85)')
+    parser.add_argument('--lossless', action='store_true',
+                        help='Use lossless compression (WebP only, overrides --quality)')
     parser.add_argument('--preview', '-p', action='store_true',
                         help='Preview pages before saving')
 
@@ -825,7 +837,8 @@ def main():
     # Suppress the duplicate "Found N scan files" from process()
     print()
     process(args.input_dir, args.output, args.quality, args.preview,
-            pages_to_rotate, auto_rotate=args.auto_rotate)
+            pages_to_rotate, auto_rotate=args.auto_rotate, fmt=args.format,
+            lossless=args.lossless)
 
 
 if __name__ == '__main__':

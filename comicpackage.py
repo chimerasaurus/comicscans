@@ -71,16 +71,27 @@ def collect_metadata_from_args(args):
     return metadata
 
 
-def generate_comicinfo_xml(pages_dir, metadata):
-    """Generate ComicInfo.xml content from page images and metadata."""
-    pages_path = Path(pages_dir)
+def find_page_files(pages_path):
+    """Find processed page files (jpg or webp) in the given directory."""
     page_files = sorted(pages_path.glob('Scan *.jpg'),
                         key=lambda f: int(f.stem.split(' ')[1]))
-
+    if not page_files:
+        page_files = sorted(pages_path.glob('Scan *.webp'),
+                            key=lambda f: int(f.stem.split(' ')[1]))
     if not page_files:
         # Try without space
         page_files = sorted(pages_path.glob('Scan*.jpg'),
                             key=lambda f: int(f.stem.replace('Scan', '') or '0'))
+    if not page_files:
+        page_files = sorted(pages_path.glob('Scan*.webp'),
+                            key=lambda f: int(f.stem.replace('Scan', '') or '0'))
+    return page_files
+
+
+def generate_comicinfo_xml(pages_dir, metadata):
+    """Generate ComicInfo.xml content from page images and metadata."""
+    pages_path = Path(pages_dir)
+    page_files = find_page_files(pages_path)
 
     root = ET.Element('ComicInfo')
     root.set('xmlns:xsi', 'http://www.w3.org/2001/XMLSchema-instance')
@@ -139,8 +150,7 @@ def create_cbz(pages_dir, output_cbz, metadata):
     print(f"  Generated ComicInfo.xml")
 
     # Collect page files
-    page_files = sorted(pages_path.glob('Scan *.jpg'),
-                        key=lambda f: int(f.stem.split(' ')[1]))
+    page_files = find_page_files(pages_path)
 
     if not page_files:
         print("Error: No processed page files found")
@@ -180,8 +190,7 @@ def hamming_distance(hash1, hash2):
 def run_qc(pages_dir):
     """Run quality control checks on processed pages."""
     pages_path = Path(pages_dir)
-    page_files = sorted(pages_path.glob('Scan *.jpg'),
-                        key=lambda f: int(f.stem.split(' ')[1]))
+    page_files = find_page_files(pages_path)
 
     if not page_files:
         print("Error: No page files found for QC")
