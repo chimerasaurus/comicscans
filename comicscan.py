@@ -294,21 +294,63 @@ def detect_bleed_boundary(gray, content_top, content_bottom,
             return spine_center + spine_width // 2, 'dark_spine'
 
     # Method 2: Look for a bright gutter (local brightness peak — white
-    # page margin between the two pages)
+    # page margin between the two pages). Cut at the gutter EDGE toward the
+    # main page, not at the peak, so the gutter strip is fully removed.
     if len(col_means) > 20:
-        # Smooth to reduce noise
         kernel_size = 15
         smoothed = np.convolve(col_means, np.ones(kernel_size) / kernel_size, mode='same')
-        overall_mean = smoothed.mean()
+        # Exclude edge artifacts from convolution
+        margin = kernel_size // 2
+        valid_start = margin
+        valid_end = len(smoothed) - margin
+        valid_region = smoothed[valid_start:valid_end]
+        overall_mean = valid_region.mean()
 
-        # A gutter should be noticeably brighter than surrounding content
-        peak_idx = np.argmax(smoothed)
-        peak_val = smoothed[peak_idx]
+        peak_idx_in_valid = np.argmax(valid_region)
+        peak_val = valid_region[peak_idx_in_valid]
+        peak_idx = valid_start + peak_idx_in_valid
         if peak_val > overall_mean + 10:
-            cut_col = win_start + peak_idx
+            # Walk from the peak toward the main page side until brightness
+            # drops below the midpoint between peak and the page content level.
+            threshold = (peak_val + overall_mean) / 2
+            if bleed_side == 'right':
+                # Main page is to the LEFT of the gutter — walk left from peak
+                edge_idx = peak_idx
+                for i in range(peak_idx, valid_start - 1, -1):
+                    if smoothed[i] < threshold:
+                        edge_idx = i
+                        break
+                cut_col = win_start + edge_idx
+            else:
+                # Main page is to the RIGHT of the gutter — walk right from peak
+                edge_idx = peak_idx
+                for i in range(peak_idx, valid_end):
+                    if smoothed[i] < threshold:
+                        edge_idx = i
+                        break
+                cut_col = win_start + edge_idx
             return cut_col, 'bright_gutter'
 
-    # Method 3: Sharpest brightness gradient, weighted by proximity to
+    # Method 3: Local brightness minimum (subtle spine shadow that's darker
+    # than surroundings but not dark enough for the strict dark-band detector).
+    # Common with ad pages and light-colored artwork near the spine.
+    if len(col_means) > 20:
+        kernel_size = 15
+        smoothed = np.convolve(col_means, np.ones(kernel_size) / kernel_size, mode='same')
+        # Exclude edge artifacts from convolution (kernel padding with zeros)
+        margin = kernel_size // 2
+        valid_start = margin
+        valid_end = len(smoothed) - margin
+        valid_region = smoothed[valid_start:valid_end]
+        overall_mean = valid_region.mean()
+
+        trough_idx_in_valid = np.argmin(valid_region)
+        trough_val = valid_region[trough_idx_in_valid]
+        if trough_val < overall_mean - 6:
+            cut_col = win_start + valid_start + trough_idx_in_valid
+            return cut_col, 'dark_trough'
+
+    # Method 4: Sharpest brightness gradient, weighted by proximity to
     # expected boundary. Panel borders can produce strong gradients
     # anywhere, so we prefer gradients near where we expect the spine.
     if len(col_means) > 10:
@@ -317,7 +359,7 @@ def detect_bleed_boundary(gray, content_top, content_bottom,
         # Gaussian proximity weight centered on expected boundary
         center_offset = expected_boundary - win_start
         positions = np.arange(len(gradient))
-        sigma = len(gradient) / 3
+        sigma = len(gradient) / 4
         proximity = np.exp(-0.5 * ((positions - center_offset) / sigma) ** 2)
         weighted_gradient = gradient * proximity
 
@@ -327,7 +369,7 @@ def detect_bleed_boundary(gray, content_top, content_bottom,
             cut_col = win_start + grad_idx
             return cut_col, 'gradient'
 
-    # Method 4: Fall back to the expected boundary position
+    # Method 5: Fall back to the expected boundary position
     return expected_boundary, 'expected_width'
 
 
