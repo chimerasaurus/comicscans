@@ -10,6 +10,7 @@ Rotation options (for upside-down pages):
     --rotate-range 2-14    Rotate a range of pages 180°
     --rotate-even           Rotate all even-numbered pages 180°
     --rotate-odd            Rotate all odd-numbered pages 180°
+    --auto-rotate           Auto-detect orientation via Tesseract OCR
 
 Example:
     python3 comicscan.py raw-scans/DS9E17/
@@ -21,11 +22,90 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import cv2
 import numpy as np
 from PIL import Image
+
+
+# ---------------------------------------------------------------------------
+# Orientation detection via Tesseract OCR
+# ---------------------------------------------------------------------------
+
+TESSERACT_BIN = "/opt/homebrew/bin/tesseract"
+
+# Common English words used to score OCR output quality
+COMMON_WORDS = set("""the a an is it in on to of and for are was not you all can had her his one our
+out but has have this that with from they been what when who will more than them
+then some just know take come make like back only your here there where we he she
+my me no so do if up about into over after look going get think now very how right
+want need said could would should been much well also way even because these those
+its too any only own good new first last long great little just such been before
+know most find here between does each those over own same tell us give day
+yes sir captain commander lieutenant wait stop go let please don't can't won't
+what's that's he's she's they're we're you're i'm i'll i've it's there's
+really want need call security enough still must quite thought station major
+doctor sir hold help kill knew something someone nothing everything""".split())
+
+
+def _count_real_words(text):
+    """Count words that appear in the common English word list."""
+    words = re.findall(r"[a-zA-Z']+", text.lower())
+    return sum(1 for w in words if w in COMMON_WORDS or
+               (len(w) >= 4 and w.rstrip("'s") in COMMON_WORDS))
+
+
+def _tesseract_ocr(image_path):
+    """Run Tesseract OCR on an image and return recognised text."""
+    result = subprocess.run(
+        [TESSERACT_BIN, str(image_path), "stdout", "--psm", "3", "-l", "eng"],
+        capture_output=True, text=True, timeout=30,
+    )
+    return result.stdout
+
+
+def detect_orientation(cv_image):
+    """Detect whether a page image is upside-down using Tesseract OCR.
+
+    Runs OCR on both the normal and 180°-rotated image, counts common
+    English words in each, and returns True if the page should be rotated.
+
+    Returns (should_rotate, normal_words, rotated_words).
+    """
+    # Write normal image to temp file
+    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+        normal_path = tmp.name
+        cv2.imwrite(normal_path, cv_image)
+
+    # Write 180°-rotated image to temp file
+    rotated_img = cv2.rotate(cv_image, cv2.ROTATE_180)
+    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+        rotated_path = tmp.name
+        cv2.imwrite(rotated_path, rotated_img)
+
+    try:
+        normal_text = _tesseract_ocr(normal_path)
+        rotated_text = _tesseract_ocr(rotated_path)
+
+        normal_words = _count_real_words(normal_text)
+        rotated_words = _count_real_words(rotated_text)
+
+        # 15% margin threshold: only rotate if the rotated version is
+        # clearly better to avoid false positives
+        if normal_words == 0 and rotated_words == 0:
+            should_rotate = False
+        elif normal_words == 0:
+            should_rotate = True
+        else:
+            ratio = rotated_words / normal_words
+            should_rotate = ratio > 1.15
+    finally:
+        os.unlink(normal_path)
+        os.unlink(rotated_path)
+
+    return should_rotate, normal_words, rotated_words
 
 
 # ---------------------------------------------------------------------------
@@ -112,24 +192,17 @@ def parse_rotate_pages(args, total_pages):
 # Two-page bleed / spine detection
 # ---------------------------------------------------------------------------
 
-def detect_spine(gray, content_bottom):
-    """Detect a comic spine/binding shadow in the scan.
+# Standard US comic page width in inches (trim size)
+COMIC_PAGE_WIDTH_INCHES = 6.625
 
-    When a comic is opened on a scanner, the spine creates a dark vertical
-    band (mean brightness < 60, std < 20) that separates the two visible
-    pages. Returns the column position of the spine center, or None.
+
+def detect_spine_dark_band(gray, content_bottom, search_start, search_end):
+    """Detect a dark spine/binding shadow (original method).
+
+    Returns (spine_center, spine_width) or None.
     """
     h = min(content_bottom, gray.shape[0])
-    w = gray.shape[1]
 
-    # Search 10-90% of the image width (covers both left and right spine positions,
-    # including cases where the page was rotated 180° moving spine to the other side)
-    search_start = int(w * 0.1)
-    search_end = int(w * 0.9)
-
-    # Analyze each column in the search region
-    # The spine is a vertical band where brightness is consistently very low
-    # with very low variance (uniform dark shadow)
     best_spine = None
     best_spine_width = 0
 
@@ -139,9 +212,7 @@ def detect_spine(gray, content_bottom):
         col_mean = strip.mean()
         col_std = strip.std()
 
-        # Spine characteristics: very dark, very uniform
         if col_mean < 60 and col_std < 20:
-            # Found a potential spine column - measure the full width
             spine_start = col
             while col < search_end:
                 s = gray[:h, col]
@@ -151,7 +222,6 @@ def detect_spine(gray, content_bottom):
             spine_end = col
             spine_width = spine_end - spine_start
 
-            # A real spine is at least 15 pixels wide
             if spine_width >= 15 and spine_width > best_spine_width:
                 best_spine = (spine_start + spine_end) // 2
                 best_spine_width = spine_width
@@ -160,8 +230,105 @@ def detect_spine(gray, content_bottom):
 
     if best_spine is not None:
         return best_spine, best_spine_width
-
     return None
+
+
+def detect_bleed_boundary(gray, content_top, content_bottom,
+                          content_left, content_right, dpi):
+    """Detect two-page bleed using expected page width from DPI.
+
+    Pages are always placed in the top-left corner of the scanner. When a
+    comic is opened flat, the adjacent page may be partially visible on the
+    right side. After 180° rotation, the bleed appears on the left side.
+
+    We determine which side has bleed by checking the scanner bed margins:
+      - Bottom margin > top margin → page is non-rotated → bleed on RIGHT
+      - Top margin > bottom margin → page was rotated 180° → bleed on LEFT
+
+    Returns (crop_col, method_str) or None.
+    """
+    content_width = content_right - content_left
+    expected_page_px = int(dpi * COMIC_PAGE_WIDTH_INCHES)
+
+    # Only trigger if content is at least 15% wider than a single page
+    if content_width < expected_page_px * 1.15:
+        return None
+
+    h = min(content_bottom, gray.shape[0])
+    img_h = gray.shape[0]
+
+    # Determine bleed side from scanner bed margin position.
+    # Page is placed top-left on the scanner bed:
+    #   - Non-rotated scan: large bottom margin (scanner bed), bleed on RIGHT
+    #   - Rotated 180° scan: large top margin (scanner bed), bleed on LEFT
+    top_margin = content_top
+    bottom_margin = img_h - content_bottom
+
+    if bottom_margin > top_margin:
+        # Non-rotated: bleed is on the right
+        bleed_side = 'right'
+        expected_boundary = content_left + expected_page_px
+    else:
+        # Rotated: bleed is on the left
+        bleed_side = 'left'
+        expected_boundary = content_right - expected_page_px
+
+    # Search in a window around the expected boundary for the best cut point
+    search_radius = int(expected_page_px * 0.08)  # ~8% tolerance
+    win_start = max(content_left + 50, expected_boundary - search_radius)
+    win_end = min(content_right - 50, expected_boundary + search_radius)
+
+    if win_start >= win_end:
+        return None
+
+    # Compute column means across the search window
+    col_means = np.array([gray[:h, x].mean() for x in range(win_start, win_end)])
+
+    # Method 1: Look for a dark spine band in this narrower region
+    dark_result = detect_spine_dark_band(gray, content_bottom, win_start, win_end)
+    if dark_result is not None:
+        spine_center, spine_width = dark_result
+        if bleed_side == 'right':
+            return spine_center - spine_width // 2, 'dark_spine'
+        else:
+            return spine_center + spine_width // 2, 'dark_spine'
+
+    # Method 2: Look for a bright gutter (local brightness peak — white
+    # page margin between the two pages)
+    if len(col_means) > 20:
+        # Smooth to reduce noise
+        kernel_size = 15
+        smoothed = np.convolve(col_means, np.ones(kernel_size) / kernel_size, mode='same')
+        overall_mean = smoothed.mean()
+
+        # A gutter should be noticeably brighter than surrounding content
+        peak_idx = np.argmax(smoothed)
+        peak_val = smoothed[peak_idx]
+        if peak_val > overall_mean + 10:
+            cut_col = win_start + peak_idx
+            return cut_col, 'bright_gutter'
+
+    # Method 3: Sharpest brightness gradient, weighted by proximity to
+    # expected boundary. Panel borders can produce strong gradients
+    # anywhere, so we prefer gradients near where we expect the spine.
+    if len(col_means) > 10:
+        gradient = np.abs(np.diff(np.convolve(col_means,
+                          np.ones(5) / 5, mode='same')))
+        # Gaussian proximity weight centered on expected boundary
+        center_offset = expected_boundary - win_start
+        positions = np.arange(len(gradient))
+        sigma = len(gradient) / 3
+        proximity = np.exp(-0.5 * ((positions - center_offset) / sigma) ** 2)
+        weighted_gradient = gradient * proximity
+
+        grad_idx = np.argmax(weighted_gradient)
+        grad_val = gradient[grad_idx]
+        if grad_val > 2.0:
+            cut_col = win_start + grad_idx
+            return cut_col, 'gradient'
+
+    # Method 4: Fall back to the expected boundary position
+    return expected_boundary, 'expected_width'
 
 
 # ---------------------------------------------------------------------------
@@ -234,13 +401,15 @@ def detect_skew(gray_image):
 # Page boundary detection
 # ---------------------------------------------------------------------------
 
-def detect_page_bounds(image):
+def detect_page_bounds(image, dpi=300):
     """Detect the comic page boundaries within a scanner image.
 
-    Scans inward from each edge to find content boundaries. Also detects
-    spine/fold lines for two-page bleed handling.
+    Scans inward from each edge to find content boundaries. Uses multiple
+    strategies to detect two-page bleed:
+      1. Dark spine shadow detection (classic binding shadow)
+      2. DPI-based expected width with bright gutter / gradient detection
 
-    Returns dict with keys: top, bottom, left, right, angle, spine_col
+    Returns dict with keys: top, bottom, left, right, angle, spine_col, bleed_method
     """
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     h, w = gray.shape
@@ -284,24 +453,45 @@ def detect_page_bounds(image):
             right = x + 1
             break
 
-    # Check for two-page bleed (spine detection)
-    spine_result = detect_spine(gray, bottom)
     spine_col = None
+    bleed_method = None
+
+    # Strategy 1: Dark spine shadow (works when binding shadow is very pronounced)
+    search_start = int(w * 0.1)
+    search_end = int(w * 0.9)
+    spine_result = detect_spine_dark_band(gray, bottom, search_start, search_end)
 
     if spine_result is not None:
         spine_center, spine_width = spine_result
-        # Determine which side has the primary page (larger area)
         left_area = (spine_center - spine_width // 2) - left
         right_area = right - (spine_center + spine_width // 2)
 
         if left_area > right_area:
-            # Primary page is on the left - crop at the spine
             right = spine_center - spine_width // 2
-            spine_col = spine_center
         else:
-            # Primary page is on the right - crop at the spine
             left = spine_center + spine_width // 2
-            spine_col = spine_center
+        spine_col = spine_center
+        bleed_method = 'dark_spine'
+
+    # Strategy 2: DPI-based expected width + boundary detection
+    # Catches bleeds that don't have a dark spine shadow (bright gutter,
+    # gradual transition, etc.)
+    if spine_col is None:
+        bleed_result = detect_bleed_boundary(gray, top, bottom, left, right, dpi)
+        if bleed_result is not None:
+            cut_col, method = bleed_result
+
+            # Determine which side to crop based on where the cut is
+            mid = (left + right) / 2
+            if cut_col > mid:
+                # Cut is on the right side — bleed is on the right
+                right = cut_col
+            else:
+                # Cut is on the left side — bleed is on the left
+                left = cut_col
+
+            spine_col = cut_col
+            bleed_method = method
 
     # Detect skew angle on the cropped content region
     cropped_gray = gray[top:bottom, left:right]
@@ -309,7 +499,7 @@ def detect_page_bounds(image):
 
     return {
         'top': top, 'bottom': bottom, 'left': left, 'right': right,
-        'angle': angle, 'spine_col': spine_col,
+        'angle': angle, 'spine_col': spine_col, 'bleed_method': bleed_method,
     }
 
 
@@ -427,7 +617,7 @@ def preview_pages(pages, indices=None):
 # ---------------------------------------------------------------------------
 
 def process(input_dir, output_dir=None, quality=93, preview=False,
-            pages_to_rotate=None):
+            pages_to_rotate=None, auto_rotate=False):
     """Main processing pipeline."""
     input_path = Path(input_dir)
 
@@ -441,6 +631,12 @@ def process(input_dir, output_dir=None, quality=93, preview=False,
     print(f"Output: {output_dir}")
     if pages_to_rotate:
         print(f"Rotate 180°: pages {sorted(pages_to_rotate)}")
+    if auto_rotate:
+        if not os.path.isfile(TESSERACT_BIN):
+            print(f"Error: Tesseract not found at {TESSERACT_BIN}")
+            print("Install with: brew install tesseract")
+            sys.exit(1)
+        print(f"Auto-rotate: enabled (Tesseract OCR)")
     print()
 
     # Step 1: Load and sort scans
@@ -460,13 +656,20 @@ def process(input_dir, output_dir=None, quality=93, preview=False,
             print(f"    Error: Could not read {filepath}")
             continue
 
-        # Rotate 180° if requested
+        # Rotate 180° if requested manually or detected automatically
         if idx in pages_to_rotate:
             image = cv2.rotate(image, cv2.ROTATE_180)
-            print(f"    Rotated 180°")
+            print(f"    Rotated 180° (manual)")
+        elif auto_rotate:
+            should_rotate, nw, rw = detect_orientation(image)
+            if should_rotate:
+                image = cv2.rotate(image, cv2.ROTATE_180)
+                print(f"    Rotated 180° (auto: {nw}w normal, {rw}w rotated)")
+            else:
+                print(f"    Orientation OK (auto: {nw}w normal, {rw}w rotated)")
 
         # Detect page bounds
-        bounds = detect_page_bounds(image)
+        bounds = detect_page_bounds(image, dpi)
         det_w = bounds['right'] - bounds['left']
         det_h = bounds['bottom'] - bounds['top']
         margins = (f"T={bounds['top']} "
@@ -476,7 +679,8 @@ def process(input_dir, output_dir=None, quality=93, preview=False,
 
         extra = ""
         if bounds['spine_col'] is not None:
-            extra += f" SPINE@{bounds['spine_col']}"
+            method = bounds.get('bleed_method', 'unknown')
+            extra += f" BLEED@{bounds['spine_col']}({method})"
         if abs(bounds['angle']) > 0.05:
             extra += f" skew={bounds['angle']:.2f}°"
 
@@ -542,6 +746,8 @@ def main():
         help='Rotate all even-numbered pages 180°')
     rotate_group.add_argument('--rotate-odd', action='store_true',
         help='Rotate all odd-numbered pages 180°')
+    rotate_group.add_argument('--auto-rotate', action='store_true',
+        help='Auto-detect and correct upside-down pages using Tesseract OCR')
 
     args = parser.parse_args()
 
@@ -557,7 +763,7 @@ def main():
     # Suppress the duplicate "Found N scan files" from process()
     print()
     process(args.input_dir, args.output, args.quality, args.preview,
-            pages_to_rotate)
+            pages_to_rotate, auto_rotate=args.auto_rotate)
 
 
 if __name__ == '__main__':
