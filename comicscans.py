@@ -1,0 +1,832 @@
+#!/usr/bin/env python3
+"""
+comicscans.py — Process raw comic book scans into clean, aligned page images.
+
+Usage:
+    python3 comicscans.py <input_dir> [--output <output_dir>] [--quality 93] [--preview]
+
+Rotation options (for upside-down pages):
+    --rotate 2,4,6,8       Rotate specific pages 180°
+    --rotate-range 2-14    Rotate a range of pages 180°
+    --rotate-even           Rotate all even-numbered pages 180°
+    --rotate-odd            Rotate all odd-numbered pages 180°
+    --auto-rotate           Auto-detect orientation via Tesseract OCR
+
+Example:
+    python3 comicscans.py raw-scans/DS9E17/
+    python3 comicscans.py raw-scans/DS9E17/ --output output/DS9E17 --rotate-even
+"""
+
+import argparse
+import os
+import re
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+import cv2
+import numpy as np
+from PIL import Image
+
+
+# ---------------------------------------------------------------------------
+# Orientation detection via Tesseract OCR
+# ---------------------------------------------------------------------------
+
+TESSERACT_BIN = "/opt/homebrew/bin/tesseract"
+
+# Common English words used to score OCR output quality
+COMMON_WORDS = set("""the a an is it in on to of and for are was not you all can had her his one our
+out but has have this that with from they been what when who will more than them
+then some just know take come make like back only your here there where we he she
+my me no so do if up about into over after look going get think now very how right
+want need said could would should been much well also way even because these those
+its too any only own good new first last long great little just such been before
+know most find here between does each those over own same tell us give day
+yes sir captain commander lieutenant wait stop go let please don't can't won't
+what's that's he's she's they're we're you're i'm i'll i've it's there's
+really want need call security enough still must quite thought station major
+doctor sir hold help kill knew something someone nothing everything""".split())
+
+
+def _count_real_words(text):
+    """Count words that appear in the common English word list."""
+    words = re.findall(r"[a-zA-Z']+", text.lower())
+    return sum(1 for w in words if w in COMMON_WORDS or
+               (len(w) >= 4 and w.rstrip("'s") in COMMON_WORDS))
+
+
+def _tesseract_ocr(image_path):
+    """Run Tesseract OCR on an image and return recognised text."""
+    result = subprocess.run(
+        [TESSERACT_BIN, str(image_path), "stdout", "--psm", "3", "-l", "eng"],
+        capture_output=True, text=True, timeout=30,
+    )
+    return result.stdout
+
+
+def detect_orientation(cv_image):
+    """Detect whether a page image is upside-down using Tesseract OCR.
+
+    Runs OCR on both the normal and 180°-rotated image, counts common
+    English words in each, and returns True if the page should be rotated.
+
+    Returns (should_rotate, normal_words, rotated_words).
+    """
+    # Write normal image to temp file
+    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+        normal_path = tmp.name
+        cv2.imwrite(normal_path, cv_image)
+
+    # Write 180°-rotated image to temp file
+    rotated_img = cv2.rotate(cv_image, cv2.ROTATE_180)
+    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+        rotated_path = tmp.name
+        cv2.imwrite(rotated_path, rotated_img)
+
+    try:
+        normal_text = _tesseract_ocr(normal_path)
+        rotated_text = _tesseract_ocr(rotated_path)
+
+        normal_words = _count_real_words(normal_text)
+        rotated_words = _count_real_words(rotated_text)
+
+        # 15% margin threshold: only rotate if the rotated version is
+        # clearly better to avoid false positives
+        if normal_words == 0 and rotated_words == 0:
+            should_rotate = False
+        elif normal_words == 0:
+            should_rotate = True
+        else:
+            ratio = rotated_words / normal_words
+            should_rotate = ratio > 1.15
+    finally:
+        os.unlink(normal_path)
+        os.unlink(rotated_path)
+
+    return should_rotate, normal_words, rotated_words
+
+
+# ---------------------------------------------------------------------------
+# File handling
+# ---------------------------------------------------------------------------
+
+def parse_scan_filename(filename):
+    """Parse scan filenames and return the page index.
+
+    'Scan.jpeg' -> 0, 'Scan 1.jpeg' -> 1, 'Scan 35.jpeg' -> 35
+    """
+    stem = Path(filename).stem
+    match = re.match(r'^Scan(?:\s+(\d+))?$', stem)
+    if not match:
+        return None
+    return int(match.group(1)) if match.group(1) else 0
+
+
+def load_scans(input_dir):
+    """Load and sort scan files from the input directory."""
+    input_path = Path(input_dir)
+    scans = []
+
+    for f in input_path.iterdir():
+        if f.suffix.lower() in ('.jpg', '.jpeg', '.png', '.tiff', '.tif', '.bmp'):
+            idx = parse_scan_filename(f.name)
+            if idx is not None:
+                scans.append((idx, f))
+
+    if not scans:
+        print(f"Error: No scan files found in {input_dir}")
+        sys.exit(1)
+
+    scans.sort(key=lambda x: x[0])
+    print(f"Found {len(scans)} scan files (pages 0-{scans[-1][0]})")
+
+    # Check for gaps
+    indices = [s[0] for s in scans]
+    expected = list(range(max(indices) + 1))
+    missing = set(expected) - set(indices)
+    if missing:
+        print(f"Warning: Missing page indices: {sorted(missing)}")
+
+    return scans
+
+
+def get_source_dpi(filepath):
+    """Read DPI from the source image."""
+    try:
+        img = Image.open(filepath)
+        dpi = img.info.get('dpi', (300, 300))
+        return int(dpi[0])
+    except Exception:
+        return 300
+
+
+def parse_rotate_pages(args, total_pages):
+    """Build a set of page indices to rotate 180° from CLI arguments."""
+    pages_to_rotate = set()
+
+    if args.rotate:
+        for part in args.rotate.split(','):
+            part = part.strip()
+            if '-' in part:
+                start, end = part.split('-', 1)
+                pages_to_rotate.update(range(int(start), int(end) + 1))
+            else:
+                pages_to_rotate.add(int(part))
+
+    if args.rotate_range:
+        start, end = args.rotate_range.split('-', 1)
+        pages_to_rotate.update(range(int(start), int(end) + 1))
+
+    if args.rotate_even:
+        pages_to_rotate.update(range(0, total_pages, 2))
+
+    if args.rotate_odd:
+        pages_to_rotate.update(range(1, total_pages, 2))
+
+    return pages_to_rotate
+
+
+# ---------------------------------------------------------------------------
+# Two-page bleed / spine detection
+# ---------------------------------------------------------------------------
+
+# Standard US comic page width in inches (trim size)
+COMIC_PAGE_WIDTH_INCHES = 6.625
+
+
+def detect_spine_dark_band(gray, content_bottom, search_start, search_end):
+    """Detect a dark spine/binding shadow (original method).
+
+    Returns (spine_center, spine_width) or None.
+    """
+    h = min(content_bottom, gray.shape[0])
+
+    best_spine = None
+    best_spine_width = 0
+
+    col = search_start
+    while col < search_end:
+        strip = gray[:h, col]
+        col_mean = strip.mean()
+        col_std = strip.std()
+
+        if col_mean < 60 and col_std < 20:
+            spine_start = col
+            while col < search_end:
+                s = gray[:h, col]
+                if s.mean() >= 60 or s.std() >= 20:
+                    break
+                col += 1
+            spine_end = col
+            spine_width = spine_end - spine_start
+
+            if spine_width >= 15 and spine_width > best_spine_width:
+                best_spine = (spine_start + spine_end) // 2
+                best_spine_width = spine_width
+        else:
+            col += 1
+
+    if best_spine is not None:
+        return best_spine, best_spine_width
+    return None
+
+
+def detect_bleed_boundary(gray, content_top, content_bottom,
+                          content_left, content_right, dpi):
+    """Detect two-page bleed using expected page width from DPI.
+
+    Pages are always placed in the top-left corner of the scanner. When a
+    comic is opened flat, the adjacent page may be partially visible on the
+    right side. After 180° rotation, the bleed appears on the left side.
+
+    We determine which side has bleed by checking the scanner bed margins:
+      - Bottom margin > top margin → page is non-rotated → bleed on RIGHT
+      - Top margin > bottom margin → page was rotated 180° → bleed on LEFT
+
+    Returns (crop_col, method_str) or None.
+    """
+    content_width = content_right - content_left
+    expected_page_px = int(dpi * COMIC_PAGE_WIDTH_INCHES)
+
+    # Only trigger if content is at least 15% wider than a single page
+    if content_width < expected_page_px * 1.15:
+        return None
+
+    h = min(content_bottom, gray.shape[0])
+    img_h = gray.shape[0]
+
+    # Determine bleed side from scanner bed margin position.
+    # Page is placed top-left on the scanner bed:
+    #   - Non-rotated scan: large bottom margin (scanner bed), bleed on RIGHT
+    #   - Rotated 180° scan: large top margin (scanner bed), bleed on LEFT
+    top_margin = content_top
+    bottom_margin = img_h - content_bottom
+
+    if bottom_margin > top_margin:
+        # Non-rotated: bleed is on the right
+        bleed_side = 'right'
+        expected_boundary = content_left + expected_page_px
+    else:
+        # Rotated: bleed is on the left
+        bleed_side = 'left'
+        expected_boundary = content_right - expected_page_px
+
+    # Search in a window around the expected boundary for the best cut point
+    search_radius = int(expected_page_px * 0.08)  # ~8% tolerance
+    win_start = max(content_left + 50, expected_boundary - search_radius)
+    win_end = min(content_right - 50, expected_boundary + search_radius)
+
+    if win_start >= win_end:
+        return None
+
+    # Compute column means across the search window
+    col_means = np.array([gray[:h, x].mean() for x in range(win_start, win_end)])
+
+    # Method 1: Look for a dark spine band in this narrower region
+    dark_result = detect_spine_dark_band(gray, content_bottom, win_start, win_end)
+    if dark_result is not None:
+        spine_center, spine_width = dark_result
+        if bleed_side == 'right':
+            return spine_center - spine_width // 2, 'dark_spine'
+        else:
+            return spine_center + spine_width // 2, 'dark_spine'
+
+    # Method 2: Look for a bright gutter (local brightness peak — white
+    # page margin between the two pages). Cut at the gutter EDGE toward the
+    # main page, not at the peak, so the gutter strip is fully removed.
+    if len(col_means) > 20:
+        kernel_size = 15
+        smoothed = np.convolve(col_means, np.ones(kernel_size) / kernel_size, mode='same')
+        # Exclude edge artifacts from convolution
+        margin = kernel_size // 2
+        valid_start = margin
+        valid_end = len(smoothed) - margin
+        valid_region = smoothed[valid_start:valid_end]
+        overall_mean = valid_region.mean()
+
+        peak_idx_in_valid = np.argmax(valid_region)
+        peak_val = valid_region[peak_idx_in_valid]
+        peak_idx = valid_start + peak_idx_in_valid
+        if peak_val > overall_mean + 10:
+            # Walk from the peak toward the main page side until brightness
+            # drops below the midpoint between peak and the page content level.
+            threshold = (peak_val + overall_mean) / 2
+            if bleed_side == 'right':
+                # Main page is to the LEFT of the gutter — walk left from peak
+                edge_idx = peak_idx
+                for i in range(peak_idx, valid_start - 1, -1):
+                    if smoothed[i] < threshold:
+                        edge_idx = i
+                        break
+                cut_col = win_start + edge_idx
+            else:
+                # Main page is to the RIGHT of the gutter — walk right from peak
+                edge_idx = peak_idx
+                for i in range(peak_idx, valid_end):
+                    if smoothed[i] < threshold:
+                        edge_idx = i
+                        break
+                cut_col = win_start + edge_idx
+            return cut_col, 'bright_gutter'
+
+    # Method 3: Local brightness minimum (subtle spine shadow that's darker
+    # than surroundings but not dark enough for the strict dark-band detector).
+    # Common with ad pages and light-colored artwork near the spine.
+    if len(col_means) > 20:
+        kernel_size = 15
+        smoothed = np.convolve(col_means, np.ones(kernel_size) / kernel_size, mode='same')
+        # Exclude edge artifacts from convolution (kernel padding with zeros)
+        margin = kernel_size // 2
+        valid_start = margin
+        valid_end = len(smoothed) - margin
+        valid_region = smoothed[valid_start:valid_end]
+        overall_mean = valid_region.mean()
+
+        trough_idx_in_valid = np.argmin(valid_region)
+        trough_val = valid_region[trough_idx_in_valid]
+        if trough_val < overall_mean - 6:
+            cut_col = win_start + valid_start + trough_idx_in_valid
+            return cut_col, 'dark_trough'
+
+    # Method 4: Sharpest brightness gradient, weighted by proximity to
+    # expected boundary. Panel borders can produce strong gradients
+    # anywhere, so we prefer gradients near where we expect the spine.
+    if len(col_means) > 10:
+        gradient = np.abs(np.diff(np.convolve(col_means,
+                          np.ones(5) / 5, mode='same')))
+        # Gaussian proximity weight centered on expected boundary
+        center_offset = expected_boundary - win_start
+        positions = np.arange(len(gradient))
+        sigma = len(gradient) / 4
+        proximity = np.exp(-0.5 * ((positions - center_offset) / sigma) ** 2)
+        weighted_gradient = gradient * proximity
+
+        grad_idx = np.argmax(weighted_gradient)
+        grad_val = gradient[grad_idx]
+        if grad_val > 2.0:
+            cut_col = win_start + grad_idx
+            return cut_col, 'gradient'
+
+    # Method 5: Fall back to the expected boundary position
+    return expected_boundary, 'expected_width'
+
+
+# ---------------------------------------------------------------------------
+# Skew detection
+# ---------------------------------------------------------------------------
+
+def detect_skew(gray_image):
+    """Detect skew angle using Hough lines on panel borders and page edges.
+
+    Focuses on the outer border region of the page. Only returns small
+    corrections (0.1° - 5°). Scans on a flatbed never need large rotation.
+    """
+    h, w = gray_image.shape
+
+    # Focus on the outer 15% border strips where panel edges and page
+    # edges give the best skew signal
+    mask = np.zeros_like(gray_image)
+    border_w = max(w // 7, 50)
+    border_h = max(h // 7, 50)
+    mask[:border_h, :] = 255       # top strip
+    mask[-border_h:, :] = 255      # bottom strip
+    mask[:, :border_w] = 255       # left strip
+    mask[:, -border_w:] = 255      # right strip
+
+    edges = cv2.Canny(gray_image, 50, 150, apertureSize=3)
+    edges = cv2.bitwise_and(edges, mask)
+
+    # Require long lines for reliable angle detection
+    min_line_len = min(h, w) // 5
+    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=80,
+                            minLineLength=min_line_len, maxLineGap=15)
+
+    if lines is None or len(lines) == 0:
+        return 0.0
+
+    # Collect angles from near-horizontal and near-vertical lines
+    angles = []
+    for line in lines:
+        x1, y1, x2, y2 = line[0]
+        length = np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+        angle = np.degrees(np.arctan2(y2 - y1, x2 - x1))
+
+        # Weight longer lines more heavily
+        weight = length / min_line_len
+
+        # Near-horizontal lines (within 5° of horizontal)
+        if abs(angle) < 5:
+            angles.extend([angle] * int(weight))
+        elif abs(angle) > 175:
+            corrected = angle - 180 if angle > 0 else angle + 180
+            angles.extend([corrected] * int(weight))
+        # Near-vertical lines (within 5° of vertical)
+        elif abs(abs(angle) - 90) < 5:
+            corrected = angle - 90 if angle > 0 else angle + 90
+            angles.extend([corrected] * int(weight))
+
+    if len(angles) < 3:
+        return 0.0
+
+    median_angle = np.median(angles)
+
+    # Only correct if skew is noticeable but not extreme
+    if abs(median_angle) < 0.1 or abs(median_angle) > 5.0:
+        return 0.0
+
+    return float(median_angle)
+
+
+# ---------------------------------------------------------------------------
+# Page boundary detection
+# ---------------------------------------------------------------------------
+
+def detect_page_bounds(image, dpi=300):
+    """Detect the comic page boundaries within a scanner image.
+
+    Scans inward from each edge to find content boundaries. Uses multiple
+    strategies to detect two-page bleed:
+      1. Dark spine shadow detection (classic binding shadow)
+      2. DPI-based expected width with bright gutter / gradient detection
+
+    Returns dict with keys: top, bottom, left, right, angle, spine_col, bleed_method
+    """
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    h, w = gray.shape
+
+    # Determine scanner bed color from the bottom-right corner
+    corner = gray[h - 50:h, w - 50:w]
+    bed_mean = corner.mean()
+    mean_thresh = max(bed_mean - 30, 180)
+    std_thresh = 25
+
+    def is_content_row(y):
+        row = gray[y, :]
+        return row.mean() < mean_thresh or row.std() > std_thresh
+
+    def is_content_col(x):
+        col = gray[:, x]
+        return col.mean() < mean_thresh or col.std() > std_thresh
+
+    # Find content boundaries
+    top = 0
+    for y in range(h):
+        if is_content_row(y):
+            top = y
+            break
+
+    bottom = h
+    for y in range(h - 1, -1, -1):
+        if is_content_row(y):
+            bottom = y + 1
+            break
+
+    left = 0
+    for x in range(w):
+        if is_content_col(x):
+            left = x
+            break
+
+    right = w
+    for x in range(w - 1, -1, -1):
+        if is_content_col(x):
+            right = x + 1
+            break
+
+    spine_col = None
+    bleed_method = None
+
+    # Strategy 1: Dark spine shadow (works when binding shadow is very pronounced)
+    search_start = int(w * 0.1)
+    search_end = int(w * 0.9)
+    spine_result = detect_spine_dark_band(gray, bottom, search_start, search_end)
+
+    if spine_result is not None:
+        spine_center, spine_width = spine_result
+        left_area = (spine_center - spine_width // 2) - left
+        right_area = right - (spine_center + spine_width // 2)
+
+        if left_area > right_area:
+            right = spine_center - spine_width // 2
+        else:
+            left = spine_center + spine_width // 2
+        spine_col = spine_center
+        bleed_method = 'dark_spine'
+
+    # Strategy 2: DPI-based expected width + boundary detection
+    # Catches bleeds that don't have a dark spine shadow (bright gutter,
+    # gradual transition, etc.)
+    if spine_col is None:
+        bleed_result = detect_bleed_boundary(gray, top, bottom, left, right, dpi)
+        if bleed_result is not None:
+            cut_col, method = bleed_result
+
+            # Determine which side to crop based on where the cut is
+            mid = (left + right) / 2
+            if cut_col > mid:
+                # Cut is on the right side — bleed is on the right
+                right = cut_col
+            else:
+                # Cut is on the left side — bleed is on the left
+                left = cut_col
+
+            spine_col = cut_col
+            bleed_method = method
+
+    # Strategy 3: Secondary trim — if after the primary bleed cut the page
+    # is still wider than expected, trim the opposite edge. This handles
+    # scans where the comic was opened wide enough that a small amount of
+    # the adjacent page is visible on BOTH sides of the spine.
+    expected_page_px = int(dpi * COMIC_PAGE_WIDTH_INCHES)
+    content_width = right - left
+    excess = content_width - expected_page_px
+    if spine_col is not None and excess > 15:
+        # Determine which side was already cropped and trim the opposite
+        top_margin = top
+        bottom_margin = h - bottom
+        if bottom_margin > top_margin:
+            # Non-rotated: primary crop was on right, trim right further
+            right = right - excess
+        else:
+            # Rotated: primary crop was on left, trim right edge
+            right = right - excess
+        if bleed_method:
+            bleed_method += '+trim'
+
+    # Detect skew angle on the cropped content region
+    cropped_gray = gray[top:bottom, left:right]
+    angle = detect_skew(cropped_gray)
+
+    return {
+        'top': top, 'bottom': bottom, 'left': left, 'right': right,
+        'angle': angle, 'spine_col': spine_col, 'bleed_method': bleed_method,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Deskew and crop
+# ---------------------------------------------------------------------------
+
+def deskew_and_crop(image, bounds):
+    """Apply deskew rotation and crop to detected page bounds."""
+    top = bounds['top']
+    bottom = bounds['bottom']
+    left = bounds['left']
+    right = bounds['right']
+    angle = bounds['angle']
+
+    if abs(angle) > 0.05:
+        img_h, img_w = image.shape[:2]
+        center = (img_w / 2, img_h / 2)
+        # Negate the angle: if the page is skewed by -1°, we rotate +1° to correct
+        rotation_matrix = cv2.getRotationMatrix2D(center, -angle, 1.0)
+
+        cos = abs(rotation_matrix[0, 0])
+        sin = abs(rotation_matrix[0, 1])
+        new_w = int(img_h * sin + img_w * cos)
+        new_h = int(img_h * cos + img_w * sin)
+        rotation_matrix[0, 2] += (new_w - img_w) / 2
+        rotation_matrix[1, 2] += (new_h - img_h) / 2
+
+        image = cv2.warpAffine(image, rotation_matrix, (new_w, new_h),
+                                borderMode=cv2.BORDER_CONSTANT,
+                                borderValue=(0, 0, 0))
+
+        # Adjust crop bounds for rotation offset
+        dx = (new_w - img_w) / 2
+        dy = (new_h - img_h) / 2
+        left = int(left + dx)
+        right = int(right + dx)
+        top = int(top + dy)
+        bottom = int(bottom + dy)
+
+    cropped = image[top:bottom, left:right]
+    return cropped
+
+
+# ---------------------------------------------------------------------------
+# Dimension normalization
+# ---------------------------------------------------------------------------
+
+def normalize_dimensions(pages, target_w, target_h):
+    """Center-composite each page onto a black canvas of uniform dimensions."""
+    normalized = []
+    for page in pages:
+        h, w = page.shape[:2]
+        canvas = np.zeros((target_h, target_w, 3), dtype=np.uint8)
+
+        paste_w = min(w, target_w)
+        paste_h = min(h, target_h)
+
+        src_x = max(0, (w - target_w) // 2)
+        src_y = max(0, (h - target_h) // 2)
+        dst_x = max(0, (target_w - w) // 2)
+        dst_y = max(0, (target_h - h) // 2)
+
+        canvas[dst_y:dst_y + paste_h, dst_x:dst_x + paste_w] = \
+            page[src_y:src_y + paste_h, src_x:src_x + paste_w]
+
+        normalized.append(canvas)
+    return normalized
+
+
+# ---------------------------------------------------------------------------
+# Output
+# ---------------------------------------------------------------------------
+
+def save_pages(pages, output_dir, quality, dpi):
+    """Save processed pages as JPEG files."""
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    for i, page in enumerate(pages):
+        filename = output_path / f"Scan {i}.jpg"
+        img = Image.fromarray(cv2.cvtColor(page, cv2.COLOR_BGR2RGB))
+        img.save(str(filename), 'JPEG', quality=quality, dpi=(dpi, dpi))
+        size_mb = filename.stat().st_size / (1024 * 1024)
+        print(f"  Saved {filename.name} ({img.width}x{img.height}, {size_mb:.1f} MB)")
+
+    return output_path
+
+
+def preview_pages(pages, indices=None):
+    """Open pages for preview using the system image viewer."""
+    if indices is None:
+        n = len(pages)
+        indices = [0, n // 2, n - 1]
+
+    import tempfile
+    preview_files = []
+    for i in indices:
+        page = pages[i]
+        img = Image.fromarray(cv2.cvtColor(page, cv2.COLOR_BGR2RGB))
+        tmp = tempfile.NamedTemporaryFile(suffix=f'_page{i}.jpg', delete=False)
+        img.save(tmp.name, 'JPEG', quality=93)
+        preview_files.append(tmp.name)
+        print(f"  Preview: page {i} -> {tmp.name}")
+
+    for f in preview_files:
+        subprocess.Popen(['open', f])
+
+    response = input("\nProceed with saving all pages? [Y/n] ").strip().lower()
+    return response != 'n'
+
+
+# ---------------------------------------------------------------------------
+# Main pipeline
+# ---------------------------------------------------------------------------
+
+def process(input_dir, output_dir=None, quality=93, preview=False,
+            pages_to_rotate=None, auto_rotate=False):
+    """Main processing pipeline."""
+    input_path = Path(input_dir)
+
+    if output_dir is None:
+        output_dir = Path('output') / input_path.name
+
+    if pages_to_rotate is None:
+        pages_to_rotate = set()
+
+    print(f"Input:  {input_path}")
+    print(f"Output: {output_dir}")
+    if pages_to_rotate:
+        print(f"Rotate 180°: pages {sorted(pages_to_rotate)}")
+    if auto_rotate:
+        if not os.path.isfile(TESSERACT_BIN):
+            print(f"Error: Tesseract not found at {TESSERACT_BIN}")
+            print("Install with: brew install tesseract")
+            sys.exit(1)
+        print(f"Auto-rotate: enabled (Tesseract OCR)")
+    print()
+
+    # Step 1: Load and sort scans
+    print("Step 1: Loading scans...")
+    scans = load_scans(input_dir)
+    dpi = get_source_dpi(scans[0][1])
+    print(f"  Source DPI: {dpi}")
+    print()
+
+    # Step 2: Detect, deskew, crop (and rotate if needed)
+    print("Step 2: Processing pages...")
+    cropped_pages = []
+    for idx, filepath in scans:
+        print(f"  Page {idx}: {filepath.name}")
+        image = cv2.imread(str(filepath))
+        if image is None:
+            print(f"    Error: Could not read {filepath}")
+            continue
+
+        # Rotate 180° if requested manually or detected automatically
+        if idx in pages_to_rotate:
+            image = cv2.rotate(image, cv2.ROTATE_180)
+            print(f"    Rotated 180° (manual)")
+        elif auto_rotate:
+            should_rotate, nw, rw = detect_orientation(image)
+            if should_rotate:
+                image = cv2.rotate(image, cv2.ROTATE_180)
+                print(f"    Rotated 180° (auto: {nw}w normal, {rw}w rotated)")
+            else:
+                print(f"    Orientation OK (auto: {nw}w normal, {rw}w rotated)")
+
+        # Detect page bounds
+        bounds = detect_page_bounds(image, dpi)
+        det_w = bounds['right'] - bounds['left']
+        det_h = bounds['bottom'] - bounds['top']
+        margins = (f"T={bounds['top']} "
+                   f"B={image.shape[0] - bounds['bottom']} "
+                   f"L={bounds['left']} "
+                   f"R={image.shape[1] - bounds['right']}")
+
+        extra = ""
+        if bounds['spine_col'] is not None:
+            method = bounds.get('bleed_method', 'unknown')
+            extra += f" BLEED@{bounds['spine_col']}({method})"
+        if abs(bounds['angle']) > 0.05:
+            extra += f" skew={bounds['angle']:.2f}°"
+
+        print(f"    Detected: {det_w}x{det_h}, margins: {margins}{extra}")
+
+        # Deskew and crop
+        cropped = deskew_and_crop(image, bounds)
+        ch, cw = cropped.shape[:2]
+        print(f"    Cropped:  {cw}x{ch}")
+        cropped_pages.append(cropped)
+    print()
+
+    # Step 3: Normalize dimensions
+    print("Step 3: Normalizing dimensions...")
+    widths = [p.shape[1] for p in cropped_pages]
+    heights = [p.shape[0] for p in cropped_pages]
+    target_w = int(np.median(widths))
+    target_h = int(np.median(heights))
+    print(f"  Median dimensions: {target_w}x{target_h}")
+    print(f"  Width  range: {min(widths)}-{max(widths)} (spread: {max(widths)-min(widths)})")
+    print(f"  Height range: {min(heights)}-{max(heights)} (spread: {max(heights)-min(heights)})")
+
+    normalized = normalize_dimensions(cropped_pages, target_w, target_h)
+    print(f"  All {len(normalized)} pages normalized to {target_w}x{target_h}")
+    print()
+
+    # Preview if requested
+    if preview:
+        print("Step 3.5: Preview...")
+        if not preview_pages(normalized):
+            print("Aborted by user.")
+            return None
+        print()
+
+    # Step 4: Save
+    print("Step 4: Saving processed pages...")
+    saved_path = save_pages(normalized, output_dir, quality, dpi)
+    print()
+    print(f"Done! {len(normalized)} pages saved to {saved_path}")
+    return saved_path
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Process raw comic book scans into clean, aligned page images.')
+    parser.add_argument('input_dir',
+                        help='Directory containing raw scan images')
+    parser.add_argument('--output', '-o',
+                        help='Output directory (default: output/<input_name>)')
+    parser.add_argument('--quality', '-q', type=int, default=93,
+                        help='JPEG quality 1-100 (default: 93)')
+    parser.add_argument('--preview', '-p', action='store_true',
+                        help='Preview pages before saving')
+
+    # 180° rotation options
+    rotate_group = parser.add_argument_group('rotation',
+        'Options for correcting upside-down pages')
+    rotate_group.add_argument('--rotate',
+        help='Comma-separated page indices to rotate 180° (e.g., "2,4,6,8" or "2-8")')
+    rotate_group.add_argument('--rotate-range',
+        help='Range of pages to rotate 180° (e.g., "2-14")')
+    rotate_group.add_argument('--rotate-even', action='store_true',
+        help='Rotate all even-numbered pages 180°')
+    rotate_group.add_argument('--rotate-odd', action='store_true',
+        help='Rotate all odd-numbered pages 180°')
+    rotate_group.add_argument('--auto-rotate', action='store_true',
+        help='Auto-detect and correct upside-down pages using Tesseract OCR')
+
+    args = parser.parse_args()
+
+    if not Path(args.input_dir).is_dir():
+        print(f"Error: {args.input_dir} is not a directory")
+        sys.exit(1)
+
+    # Count pages for rotate calculation
+    scans = load_scans(args.input_dir)
+    total_pages = max(idx for idx, _ in scans) + 1
+    pages_to_rotate = parse_rotate_pages(args, total_pages)
+
+    # Suppress the duplicate "Found N scan files" from process()
+    print()
+    process(args.input_dir, args.output, args.quality, args.preview,
+            pages_to_rotate, auto_rotate=args.auto_rotate)
+
+
+if __name__ == '__main__':
+    main()
