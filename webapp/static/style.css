@@ -1,0 +1,459 @@
+/* ===== Reset & Base ===== */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background: #1a1a2e;
+    color: #e0e0e0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.4;
+    overflow-x: hidden;
+}
+
+/* ===== Top Bar ===== */
+#topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 8px 16px;
+    background: #16213e;
+    border-bottom: 1px solid #0f3460;
+    flex-wrap: wrap;
+}
+
+.topbar-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.topbar-group label {
+    font-size: 13px;
+    color: #aaa;
+    white-space: nowrap;
+}
+
+/* ===== Inputs ===== */
+input[type="text"],
+input[type="number"],
+select {
+    background: #0a0a1a;
+    border: 1px solid #0f3460;
+    border-radius: 4px;
+    color: #e0e0e0;
+    padding: 5px 8px;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+select:focus {
+    border-color: #e94560;
+}
+
+#input-dir {
+    width: 280px;
+}
+
+#output-dir {
+    width: 220px;
+}
+
+#quality-input {
+    width: 52px;
+}
+
+select {
+    cursor: pointer;
+}
+
+/* ===== Buttons ===== */
+button {
+    background: #e94560;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    white-space: nowrap;
+}
+
+button:hover {
+    background: #d63851;
+}
+
+button:active {
+    transform: scale(0.97);
+}
+
+button:disabled {
+    background: #555;
+    cursor: not-allowed;
+}
+
+/* ===== Grid View ===== */
+#grid-view {
+    padding: 64px 16px 16px;
+}
+
+#grid-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+}
+
+/* ===== Grid Card ===== */
+.grid-card {
+    background: #0f3460;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    border: 2px solid transparent;
+}
+
+.grid-card:hover {
+    border-color: #e94560;
+    box-shadow: 0 0 12px rgba(233, 69, 96, 0.3);
+}
+
+.grid-card.active {
+    border-color: #e94560;
+    box-shadow: 0 0 16px rgba(233, 69, 96, 0.5);
+}
+
+.grid-card img {
+    width: 100%;
+    aspect-ratio: 2/3;
+    object-fit: contain;
+    background: #0a0a1a;
+    display: block;
+}
+
+.card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    font-size: 12px;
+}
+
+.card-footer .page-label {
+    font-weight: 500;
+}
+
+.card-footer .status-badge {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: #999;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.status-dot.pending { background: #666; }
+.status-dot.detected { background: #4caf50; }
+.status-dot.adjusted { background: #ffc107; }
+
+/* ===== Editor View ===== */
+#editor-view {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    background: #1a1a2e;
+    z-index: 50;
+}
+
+#editor-view.hidden {
+    display: none;
+}
+
+/* Canvas Panel (left, ~75%) */
+#editor-canvas-panel {
+    flex: 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 90px 16px 26px;  /* top clears fixed topbar + handle margin */
+    overflow: hidden;
+    background: #111;
+}
+
+#canvas-container {
+    position: relative;
+    display: inline-block;
+    transform-origin: center center;
+    transition: transform 0.05s ease-out;
+}
+
+#canvas-container canvas {
+    display: block;
+}
+
+#overlay-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+/* Zoom lens — magnifier circle shown while dragging a corner */
+#zoom-lens {
+    position: absolute;
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    border: 2px solid #e94560;
+    box-shadow: 0 0 12px rgba(0,0,0,0.8);
+    overflow: hidden;
+    pointer-events: none;
+    display: none;           /* shown via JS during drag */
+    z-index: 10;
+    image-rendering: pixelated;
+}
+
+#zoom-lens canvas {
+    display: block;
+}
+
+/* Crosshair in the center of the zoom lens */
+#zoom-crosshair {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+#zoom-crosshair::before,
+#zoom-crosshair::after {
+    content: '';
+    position: absolute;
+    background: #e94560;
+}
+
+#zoom-crosshair::before {
+    top: 50%;
+    left: 0;
+    width: 100%;
+    height: 1px;
+    transform: translateY(-0.5px);
+}
+
+#zoom-crosshair::after {
+    left: 50%;
+    top: 0;
+    height: 100%;
+    width: 1px;
+    transform: translateX(-0.5px);
+}
+
+/* Controls Panel (right, ~25%) */
+#editor-controls {
+    flex: 1;
+    min-width: 260px;
+    max-width: 340px;
+    padding: 16px;
+    background: #16213e;
+    border-left: 1px solid #0f3460;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+#editor-title {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.control-group label {
+    font-size: 13px;
+    color: #ccc;
+}
+
+.control-group h3 {
+    font-size: 14px;
+    font-weight: 500;
+    color: #aaa;
+    margin-bottom: 2px;
+}
+
+/* Rotation slider */
+input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    background: #0a0a1a;
+    border-radius: 3px;
+    outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #e94560;
+    cursor: pointer;
+}
+
+/* 180 toggle row */
+.control-group .status-label {
+    font-size: 12px;
+    color: #888;
+}
+
+/* Corner display */
+#corner-display {
+    font-family: "SF Mono", "Fira Code", monospace;
+    font-size: 12px;
+    background: #0a0a1a;
+    border-radius: 4px;
+    padding: 8px;
+}
+
+.corner-row {
+    display: flex;
+    gap: 6px;
+    padding: 2px 0;
+}
+
+.corner-label {
+    color: #e94560;
+    width: 28px;
+    font-weight: 600;
+}
+
+/* Button rows */
+.button-row {
+    flex-direction: row !important;
+    flex-wrap: wrap;
+}
+
+.button-row button {
+    flex: 1;
+    min-width: 80px;
+}
+
+.nav-row {
+    flex-direction: row !important;
+    margin-top: auto;
+}
+
+.nav-row button {
+    flex: 1;
+}
+
+#btn-close-editor {
+    background: #333;
+}
+
+#btn-close-editor:hover {
+    background: #444;
+}
+
+#btn-reset {
+    background: #555;
+}
+
+#btn-reset:hover {
+    background: #666;
+}
+
+/* ===== Progress Modal ===== */
+#progress-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.7);
+}
+
+#progress-modal.hidden {
+    display: none;
+}
+
+#progress-content {
+    background: #16213e;
+    border-radius: 12px;
+    padding: 32px 40px;
+    min-width: 400px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+#progress-bar-container {
+    width: 100%;
+    height: 12px;
+    background: #0a0a1a;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+#progress-bar {
+    width: 0%;
+    height: 100%;
+    background: #e94560;
+    border-radius: 6px;
+    transition: width 0.3s;
+}
+
+#progress-text {
+    font-size: 13px;
+    color: #aaa;
+}
+
+/* ===== Utility ===== */
+.hidden {
+    display: none !important;
+}
+
+/* ===== Responsive (1200px+) ===== */
+@media (max-width: 1199px) {
+    #editor-controls {
+        min-width: 220px;
+        max-width: 280px;
+        padding: 12px;
+    }
+}

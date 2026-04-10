@@ -23,6 +23,7 @@ import re
 import subprocess
 import sys
 import tempfile
+from collections import Counter
 from pathlib import Path
 
 import cv2
@@ -74,13 +75,21 @@ def detect_orientation(cv_image):
 
     Returns (should_rotate, normal_words, rotated_words).
     """
+    # Downscale large images for faster OCR (target ~2000px wide)
+    h, w = cv_image.shape[:2]
+    ocr_image = cv_image
+    if w > 2500:
+        scale = 2000 / w
+        ocr_image = cv2.resize(cv_image, (int(w * scale), int(h * scale)),
+                               interpolation=cv2.INTER_AREA)
+
     # Write normal image to temp file
     with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
         normal_path = tmp.name
-        cv2.imwrite(normal_path, cv_image)
+        cv2.imwrite(normal_path, ocr_image)
 
     # Write 180°-rotated image to temp file
-    rotated_img = cv2.rotate(cv_image, cv2.ROTATE_180)
+    rotated_img = cv2.rotate(ocr_image, cv2.ROTATE_180)
     with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
         rotated_path = tmp.name
         cv2.imwrite(rotated_path, rotated_img)
@@ -250,8 +259,8 @@ def detect_bleed_boundary(gray, content_top, content_bottom,
     content_width = content_right - content_left
     expected_page_px = int(dpi * COMIC_PAGE_WIDTH_INCHES)
 
-    # Only trigger if content is at least 15% wider than a single page
-    if content_width < expected_page_px * 1.15:
+    # Only trigger if content is at least 5% wider than a single page
+    if content_width < expected_page_px * 1.05:
         return None
 
     h = min(content_bottom, gray.shape[0])
@@ -333,11 +342,12 @@ def detect_bleed_boundary(gray, content_top, content_bottom,
 
     # Method 3: Local brightness minimum (subtle spine shadow that's darker
     # than surroundings but not dark enough for the strict dark-band detector).
-    # Common with ad pages and light-colored artwork near the spine.
+    # Must be a true V-shaped local minimum — significantly darker than the
+    # surrounding region on BOTH sides — not just the global minimum of a
+    # gradually decreasing brightness slope.
     if len(col_means) > 20:
         kernel_size = 15
         smoothed = np.convolve(col_means, np.ones(kernel_size) / kernel_size, mode='same')
-        # Exclude edge artifacts from convolution (kernel padding with zeros)
         margin = kernel_size // 2
         valid_start = margin
         valid_end = len(smoothed) - margin
@@ -347,8 +357,19 @@ def detect_bleed_boundary(gray, content_top, content_bottom,
         trough_idx_in_valid = np.argmin(valid_region)
         trough_val = valid_region[trough_idx_in_valid]
         if trough_val < overall_mean - 6:
-            cut_col = win_start + valid_start + trough_idx_in_valid
-            return cut_col, 'dark_trough'
+            # Verify it's a true local minimum (V-shape), not just the low
+            # end of a brightness gradient. Check that the brightness rises
+            # on both sides of the trough within a local neighborhood.
+            neighborhood = max(20, len(valid_region) // 10)
+            left_region = valid_region[max(0, trough_idx_in_valid - neighborhood):trough_idx_in_valid]
+            right_region = valid_region[trough_idx_in_valid + 1:min(len(valid_region), trough_idx_in_valid + neighborhood + 1)]
+            if len(left_region) > 0 and len(right_region) > 0:
+                left_max = left_region.max()
+                right_max = right_region.max()
+                # Both sides must be at least 4 brightness points above the trough
+                if left_max > trough_val + 4 and right_max > trough_val + 4:
+                    cut_col = win_start + valid_start + trough_idx_in_valid
+                    return cut_col, 'dark_trough'
 
     # Method 4: Sharpest brightness gradient, weighted by proximity to
     # expected boundary. Panel borders can produce strong gradients
@@ -443,57 +464,98 @@ def detect_skew(gray_image):
 # Page boundary detection
 # ---------------------------------------------------------------------------
 
+def _find_content_bounds(gray, mean_thresh, std_thresh):
+    """Scan inward from each edge to find where content begins."""
+    h, w = gray.shape
+
+    top = 0
+    for y in range(h):
+        row = gray[y, :]
+        if row.mean() < mean_thresh or row.std() > std_thresh:
+            top = y
+            break
+
+    bottom = h
+    for y in range(h - 1, -1, -1):
+        row = gray[y, :]
+        if row.mean() < mean_thresh or row.std() > std_thresh:
+            bottom = y + 1
+            break
+
+    left = 0
+    for x in range(w):
+        col = gray[:, x]
+        if col.mean() < mean_thresh or col.std() > std_thresh:
+            left = x
+            break
+
+    right = w
+    for x in range(w - 1, -1, -1):
+        col = gray[:, x]
+        if col.mean() < mean_thresh or col.std() > std_thresh:
+            right = x + 1
+            break
+
+    return top, bottom, left, right
+
+
+def _deskew_gray(gray, angle, fill_value):
+    """Rotate a grayscale image to correct skew, expanding canvas."""
+    h, w = gray.shape
+    center = (w / 2, h / 2)
+    M = cv2.getRotationMatrix2D(center, -angle, 1.0)
+    cos = abs(M[0, 0])
+    sin = abs(M[0, 1])
+    new_w = int(h * sin + w * cos)
+    new_h = int(h * cos + w * sin)
+    M[0, 2] += (new_w - w) / 2
+    M[1, 2] += (new_h - h) / 2
+    rotated = cv2.warpAffine(gray, M, (new_w, new_h),
+                              borderMode=cv2.BORDER_CONSTANT,
+                              borderValue=int(fill_value))
+    return rotated
+
+
 def detect_page_bounds(image, dpi=300):
     """Detect the comic page boundaries within a scanner image.
 
-    Scans inward from each edge to find content boundaries. Uses multiple
-    strategies to detect two-page bleed:
-      1. Dark spine shadow detection (classic binding shadow)
-      2. DPI-based expected width with bright gutter / gradient detection
+    Two-pass approach:
+      Pass 1 — Rough content detection + skew angle measurement.
+      Deskew  — Straighten the grayscale image so the spine is vertical.
+      Pass 2 — Re-detect content, then run bleed / trim / edge-trim on
+               the deskewed image where column-based cuts are accurate.
 
     Returns dict with keys: top, bottom, left, right, angle, spine_col, bleed_method
     """
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     h, w = gray.shape
 
-    # Determine scanner bed color from the bottom-right corner
-    corner = gray[h - 50:h, w - 50:w]
-    bed_mean = corner.mean()
-    mean_thresh = max(bed_mean - 30, 180)
-    std_thresh = 25
+    # Determine scanner bed color from the brightest corner.
+    corners = [
+        gray[:50, :50],            # top-left
+        gray[:50, w - 50:w],       # top-right
+        gray[h - 50:h, :50],       # bottom-left
+        gray[h - 50:h, w - 50:w],  # bottom-right
+    ]
+    bed_mean = max(c.mean() for c in corners)
+    mean_thresh = max(bed_mean - 20, 200)
+    std_thresh = 20
 
-    def is_content_row(y):
-        row = gray[y, :]
-        return row.mean() < mean_thresh or row.std() > std_thresh
+    # --- Pass 1: rough content bounds + skew detection ---
+    top, bottom, left, right = _find_content_bounds(gray, mean_thresh, std_thresh)
+    cropped_gray = gray[top:bottom, left:right]
+    angle = detect_skew(cropped_gray)
 
-    def is_content_col(x):
-        col = gray[:, x]
-        return col.mean() < mean_thresh or col.std() > std_thresh
+    # --- Deskew: straighten the image so spine/edges are vertical/horizontal ---
+    # This is critical for accurate column-based bleed detection: at 1° of
+    # skew over 3000 px the spine drifts ~52 px — no single vertical cut
+    # can cleanly separate two pages without deskewing first.
+    if abs(angle) > 0.1:
+        gray = _deskew_gray(gray, angle, bed_mean)
+        h, w = gray.shape
 
-    # Find content boundaries
-    top = 0
-    for y in range(h):
-        if is_content_row(y):
-            top = y
-            break
-
-    bottom = h
-    for y in range(h - 1, -1, -1):
-        if is_content_row(y):
-            bottom = y + 1
-            break
-
-    left = 0
-    for x in range(w):
-        if is_content_col(x):
-            left = x
-            break
-
-    right = w
-    for x in range(w - 1, -1, -1):
-        if is_content_col(x):
-            right = x + 1
-            break
+    # --- Pass 2: re-detect content on the deskewed image ---
+    top, bottom, left, right = _find_content_bounds(gray, mean_thresh, std_thresh)
 
     spine_col = None
     bleed_method = None
@@ -516,48 +578,73 @@ def detect_page_bounds(image, dpi=300):
         bleed_method = 'dark_spine'
 
     # Strategy 2: DPI-based expected width + boundary detection
-    # Catches bleeds that don't have a dark spine shadow (bright gutter,
-    # gradual transition, etc.)
     if spine_col is None:
         bleed_result = detect_bleed_boundary(gray, top, bottom, left, right, dpi)
         if bleed_result is not None:
             cut_col, method = bleed_result
 
-            # Determine which side to crop based on where the cut is
+            # Small inward shift on the bleed side to remove adjacent-page
+            # content that sneaks past the detected gutter/trough boundary.
+            bleed_inset = int(dpi * 0.05)  # 0.05" ≈ 15px@300, 30px@600
+
             mid = (left + right) / 2
             if cut_col > mid:
-                # Cut is on the right side — bleed is on the right
-                right = cut_col
+                right = cut_col - bleed_inset
             else:
-                # Cut is on the left side — bleed is on the left
-                left = cut_col
+                left = cut_col + bleed_inset
 
             spine_col = cut_col
             bleed_method = method
 
-    # Strategy 3: Secondary trim — if after the primary bleed cut the page
-    # is still wider than expected, trim the opposite edge. This handles
-    # scans where the comic was opened wide enough that a small amount of
-    # the adjacent page is visible on BOTH sides of the spine.
+    # Strategy 3: Secondary trim — trim opposite edge to expected page width
     expected_page_px = int(dpi * COMIC_PAGE_WIDTH_INCHES)
+    safety_margin = int(dpi * 0.15)
+    trim_target = expected_page_px - safety_margin
     content_width = right - left
-    excess = content_width - expected_page_px
-    if spine_col is not None and excess > 15:
-        # Determine which side was already cropped and trim the opposite
-        top_margin = top
-        bottom_margin = h - bottom
+    excess = content_width - trim_target
+    top_margin = top
+    bottom_margin = h - bottom
+    if spine_col is not None and excess > 0:
         if bottom_margin > top_margin:
-            # Non-rotated: primary crop was on right, trim right further
-            right = right - excess
+            left = left + excess
         else:
-            # Rotated: primary crop was on left, trim right edge
             right = right - excess
         if bleed_method:
             bleed_method += '+trim'
 
-    # Detect skew angle on the cropped content region
-    cropped_gray = gray[top:bottom, left:right]
-    angle = detect_skew(cropped_gray)
+    # Strategy 5: Edge trim — scan inward from each edge looking for
+    # uniform bright strips. Uses a narrow center band to avoid artifacts.
+    strip_check = min(200, (bottom - top) // 20, (right - left) // 20)
+    if strip_check > 20:
+        mid_y = (top + bottom) // 2
+        band_h = min(600, (bottom - top) // 3)
+        band_top = mid_y - band_h // 2
+        band_bot = mid_y + band_h // 2
+        mid_x = (left + right) // 2
+        band_w = min(600, (right - left) // 3)
+        band_left = mid_x - band_w // 2
+        band_right = mid_x + band_w // 2
+
+        for y in range(top, min(top + strip_check, bottom)):
+            row = gray[y, band_left:band_right]
+            if row.mean() < mean_thresh or row.std() > std_thresh:
+                top = y
+                break
+        for y in range(bottom - 1, max(bottom - strip_check, top), -1):
+            row = gray[y, band_left:band_right]
+            if row.mean() < mean_thresh or row.std() > std_thresh:
+                bottom = y + 1
+                break
+        for x in range(left, min(left + strip_check, right)):
+            col = gray[band_top:band_bot, x]
+            if col.mean() < mean_thresh or col.std() > std_thresh:
+                left = x
+                break
+        for x in range(right - 1, max(right - strip_check, left), -1):
+            col = gray[band_top:band_bot, x]
+            if col.mean() < mean_thresh or col.std() > std_thresh:
+                right = x + 1
+                break
 
     return {
         'top': top, 'bottom': bottom, 'left': left, 'right': right,
@@ -712,15 +799,28 @@ def process(input_dir, output_dir=None, quality=85, preview=False,
     # Step 1: Load and sort scans
     print("Step 1: Loading scans...")
     scans = load_scans(input_dir)
-    dpi = get_source_dpi(scans[0][1])
-    print(f"  Source DPI: {dpi}")
+
+    # Read DPI for every scan (may vary between pages)
+    scan_dpis = []
+    for _, fp in scans:
+        scan_dpis.append(get_source_dpi(fp))
+    unique_dpis = sorted(set(scan_dpis))
+    if len(unique_dpis) == 1:
+        print(f"  Source DPI: {unique_dpis[0]}")
+    else:
+        dpi_counts = Counter(scan_dpis)
+        parts = ", ".join(f"{d} DPI ({n} pages)" for d, n in dpi_counts.most_common())
+        print(f"  Mixed DPI: {parts}")
+    # Use the most common DPI as the "output" DPI
+    output_dpi = Counter(scan_dpis).most_common(1)[0][0]
     print()
 
     # Step 2: Detect, deskew, crop (and rotate if needed)
     print("Step 2: Processing pages...")
     cropped_pages = []
-    for idx, filepath in scans:
-        print(f"  Page {idx}: {filepath.name}")
+    for (idx, filepath), page_dpi in zip(scans, scan_dpis):
+        dpi_note = f" [{page_dpi}dpi]" if len(unique_dpis) > 1 else ""
+        print(f"  Page {idx}: {filepath.name}{dpi_note}")
         image = cv2.imread(str(filepath))
         if image is None:
             print(f"    Error: Could not read {filepath}")
@@ -738,8 +838,8 @@ def process(input_dir, output_dir=None, quality=85, preview=False,
             else:
                 print(f"    Orientation OK (auto: {nw}w normal, {rw}w rotated)")
 
-        # Detect page bounds
-        bounds = detect_page_bounds(image, dpi)
+        # Detect page bounds using this page's actual DPI
+        bounds = detect_page_bounds(image, page_dpi)
         det_w = bounds['right'] - bounds['left']
         det_h = bounds['bottom'] - bounds['top']
         margins = (f"T={bounds['top']} "
@@ -787,7 +887,7 @@ def process(input_dir, output_dir=None, quality=85, preview=False,
 
     # Step 4: Save
     print("Step 4: Saving processed pages...")
-    saved_path = save_pages(normalized, output_dir, quality, dpi, fmt, lossless)
+    saved_path = save_pages(normalized, output_dir, quality, output_dpi, fmt, lossless)
     print()
     print(f"Done! {len(normalized)} pages saved to {saved_path}")
     return saved_path

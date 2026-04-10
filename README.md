@@ -87,7 +87,8 @@ python3 comicscans.py <input_dir> [options]
 | Flag | Description |
 |------|-------------|
 | `--output`, `-o` | Output directory (default: `output/<input_name>`) |
-| `--quality`, `-q` | JPEG quality 1-100 (default: 93) |
+| `--format`, `-f` | Output format: `jpg` or `webp` (default: `jpg`) |
+| `--quality`, `-q` | Image quality 1-100 (default: 85) |
 | `--preview`, `-p` | Preview first, middle, and last pages before saving |
 | `--auto-rotate` | Auto-detect upside-down pages using Tesseract OCR |
 | `--rotate` | Rotate specific pages 180° (e.g., `2,4,6` or `2-8`) |
@@ -120,8 +121,11 @@ python3 comicscans.py raw-scans/DS9E17/ --rotate-even
 # Preview before saving
 python3 comicscans.py raw-scans/DS9E17/ --auto-rotate --preview
 
-# Lower quality for smaller file size
-python3 comicscans.py raw-scans/DS9E17/ --quality 85
+# WebP output for smaller file size
+python3 comicscans.py raw-scans/DS9E17/ --auto-rotate --format webp
+
+# Lower quality for even smaller files
+python3 comicscans.py raw-scans/DS9E17/ --format webp --quality 75
 ```
 
 ---
@@ -201,7 +205,7 @@ Pages are cropped to their detected boundaries, then center-composited onto a un
 
 ### Step 6: Save
 
-Pages are saved as JPEG with the specified quality and original DPI metadata.
+Pages are saved as JPEG or WebP (selected via `--format`) with the specified quality. JPEG preserves DPI metadata; WebP typically produces 30–50% smaller files at equivalent visual quality.
 
 ---
 

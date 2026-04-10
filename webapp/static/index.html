@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comic Scan Processor</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <!-- Top Bar -->
+    <header id="topbar">
+        <div class="topbar-group">
+            <label for="input-dir">Directory:</label>
+            <input type="text" id="input-dir" placeholder="/path/to/scans" spellcheck="false">
+            <button id="btn-load">Load</button>
+        </div>
+        <div class="topbar-group">
+            <button id="btn-detect-all">Detect All</button>
+        </div>
+        <div class="topbar-group">
+            <label for="output-dir">Output:</label>
+            <input type="text" id="output-dir" placeholder="/path/to/output" spellcheck="false">
+            <select id="format-select">
+                <option value="jpg">JPG</option>
+                <option value="webp">WebP</option>
+            </select>
+            <label for="quality-input">Q:</label>
+            <input type="number" id="quality-input" value="92" min="1" max="100">
+            <button id="btn-process-all">Process All</button>
+        </div>
+    </header>
+
+    <!-- Grid View -->
+    <main id="grid-view">
+        <div id="grid-container"></div>
+    </main>
+
+    <!-- Editor View -->
+    <div id="editor-view" class="hidden">
+        <div id="editor-canvas-panel">
+            <div id="canvas-container">
+                <canvas id="bg-canvas"></canvas>
+                <canvas id="overlay-canvas"></canvas>
+                <div id="zoom-lens">
+                    <canvas id="zoom-canvas" width="150" height="150"></canvas>
+                    <div id="zoom-crosshair"></div>
+                </div>
+            </div>
+        </div>
+        <div id="editor-controls">
+            <h2 id="editor-title">Page</h2>
+
+            <div class="control-group">
+                <label>Rotation: <span id="rotation-value">0.00</span>&deg;</label>
+                <input type="range" id="rotation-slider" min="-5" max="5" step="0.01" value="0">
+            </div>
+
+            <div class="control-group">
+                <button id="btn-rotate180">Toggle 180&deg;</button>
+                <span id="rotate180-status" class="status-label">Off</span>
+            </div>
+
+            <div class="control-group">
+                <h3>Corners (original px)</h3>
+                <div id="corner-display">
+                    <div class="corner-row"><span class="corner-label">TL:</span> <span id="corner-0">--</span></div>
+                    <div class="corner-row"><span class="corner-label">TR:</span> <span id="corner-1">--</span></div>
+                    <div class="corner-row"><span class="corner-label">BR:</span> <span id="corner-2">--</span></div>
+                    <div class="corner-row"><span class="corner-label">BL:</span> <span id="corner-3">--</span></div>
+                </div>
+            </div>
+
+            <div class="control-group button-row">
+                <button id="btn-reset">Reset to Auto</button>
+                <button id="btn-preview">Preview</button>
+                <button id="btn-apply">Apply</button>
+            </div>
+
+            <div class="control-group nav-row">
+                <button id="btn-prev">&larr; Prev</button>
+                <button id="btn-close-editor">Back to Grid</button>
+                <button id="btn-next">Next &rarr;</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Modal -->
+    <div id="progress-modal" class="hidden">
+        <div id="progress-content">
+            <h2 id="progress-title">Processing...</h2>
+            <div id="progress-bar-container">
+                <div id="progress-bar"></div>
+            </div>
+            <p id="progress-text">Initializing...</p>
+            <button id="btn-close-modal" class="hidden">Close</button>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
