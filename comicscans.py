@@ -205,12 +205,15 @@ def parse_rotate_pages(args, total_pages):
 COMIC_PAGE_WIDTH_INCHES = 6.625
 
 
-def detect_spine_dark_band(gray, content_bottom, search_start, search_end):
+def detect_spine_dark_band(gray, content_bottom, search_start, search_end,
+                           dpi=300):
     """Detect a dark spine/binding shadow (original method).
 
     Returns (spine_center, spine_width) or None.
     """
     h = min(content_bottom, gray.shape[0])
+    dpi_scale = dpi / 300.0
+    min_spine_width = int(15 * dpi_scale)
 
     best_spine = None
     best_spine_width = 0
@@ -231,7 +234,7 @@ def detect_spine_dark_band(gray, content_bottom, search_start, search_end):
             spine_end = col
             spine_width = spine_end - spine_start
 
-            if spine_width >= 15 and spine_width > best_spine_width:
+            if spine_width >= min_spine_width and spine_width > best_spine_width:
                 best_spine = (spine_start + spine_end) // 2
                 best_spine_width = spine_width
         else:
@@ -283,9 +286,11 @@ def detect_bleed_boundary(gray, content_top, content_bottom,
         expected_boundary = content_right - expected_page_px
 
     # Search in a window around the expected boundary for the best cut point
+    dpi_scale = dpi / 300.0
     search_radius = int(expected_page_px * 0.08)  # ~8% tolerance
-    win_start = max(content_left + 50, expected_boundary - search_radius)
-    win_end = min(content_right - 50, expected_boundary + search_radius)
+    edge_margin = int(50 * dpi_scale)
+    win_start = max(content_left + edge_margin, expected_boundary - search_radius)
+    win_end = min(content_right - edge_margin, expected_boundary + search_radius)
 
     if win_start >= win_end:
         return None
@@ -294,7 +299,7 @@ def detect_bleed_boundary(gray, content_top, content_bottom,
     col_means = np.array([gray[:h, x].mean() for x in range(win_start, win_end)])
 
     # Method 1: Look for a dark spine band in this narrower region
-    dark_result = detect_spine_dark_band(gray, content_bottom, win_start, win_end)
+    dark_result = detect_spine_dark_band(gray, content_bottom, win_start, win_end, dpi)
     if dark_result is not None:
         spine_center, spine_width = dark_result
         if bleed_side == 'right':
@@ -305,8 +310,9 @@ def detect_bleed_boundary(gray, content_top, content_bottom,
     # Method 2: Look for a bright gutter (local brightness peak — white
     # page margin between the two pages). Cut at the gutter EDGE toward the
     # main page, not at the peak, so the gutter strip is fully removed.
-    if len(col_means) > 20:
-        kernel_size = 15
+    min_cols = int(20 * dpi_scale)
+    kernel_size = int(15 * dpi_scale) | 1  # ensure odd
+    if len(col_means) > min_cols:
         smoothed = np.convolve(col_means, np.ones(kernel_size) / kernel_size, mode='same')
         # Exclude edge artifacts from convolution
         margin = kernel_size // 2
@@ -345,8 +351,7 @@ def detect_bleed_boundary(gray, content_top, content_bottom,
     # Must be a true V-shaped local minimum — significantly darker than the
     # surrounding region on BOTH sides — not just the global minimum of a
     # gradually decreasing brightness slope.
-    if len(col_means) > 20:
-        kernel_size = 15
+    if len(col_means) > min_cols:
         smoothed = np.convolve(col_means, np.ones(kernel_size) / kernel_size, mode='same')
         margin = kernel_size // 2
         valid_start = margin
@@ -360,7 +365,7 @@ def detect_bleed_boundary(gray, content_top, content_bottom,
             # Verify it's a true local minimum (V-shape), not just the low
             # end of a brightness gradient. Check that the brightness rises
             # on both sides of the trough within a local neighborhood.
-            neighborhood = max(20, len(valid_region) // 10)
+            neighborhood = max(int(20 * dpi_scale), len(valid_region) // 10)
             left_region = valid_region[max(0, trough_idx_in_valid - neighborhood):trough_idx_in_valid]
             right_region = valid_region[trough_idx_in_valid + 1:min(len(valid_region), trough_idx_in_valid + neighborhood + 1)]
             if len(left_region) > 0 and len(right_region) > 0:
@@ -374,9 +379,10 @@ def detect_bleed_boundary(gray, content_top, content_bottom,
     # Method 4: Sharpest brightness gradient, weighted by proximity to
     # expected boundary. Panel borders can produce strong gradients
     # anywhere, so we prefer gradients near where we expect the spine.
-    if len(col_means) > 10:
+    grad_kernel = int(5 * dpi_scale) | 1  # ensure odd
+    if len(col_means) > int(10 * dpi_scale):
         gradient = np.abs(np.diff(np.convolve(col_means,
-                          np.ones(5) / 5, mode='same')))
+                          np.ones(grad_kernel) / grad_kernel, mode='same')))
         # Gaussian proximity weight centered on expected boundary
         center_offset = expected_boundary - win_start
         positions = np.arange(len(gradient))
@@ -530,12 +536,16 @@ def detect_page_bounds(image, dpi=300):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     h, w = gray.shape
 
+    # Scale factor for DPI-dependent pixel constants (calibrated at 300 DPI)
+    dpi_scale = dpi / 300.0
+
     # Determine scanner bed color from the brightest corner.
+    cs = int(50 * dpi_scale)  # corner sample size
     corners = [
-        gray[:50, :50],            # top-left
-        gray[:50, w - 50:w],       # top-right
-        gray[h - 50:h, :50],       # bottom-left
-        gray[h - 50:h, w - 50:w],  # bottom-right
+        gray[:cs, :cs],            # top-left
+        gray[:cs, w - cs:w],       # top-right
+        gray[h - cs:h, :cs],       # bottom-left
+        gray[h - cs:h, w - cs:w],  # bottom-right
     ]
     bed_mean = max(c.mean() for c in corners)
     mean_thresh = max(bed_mean - 20, 200)
@@ -563,7 +573,7 @@ def detect_page_bounds(image, dpi=300):
     # Strategy 1: Dark spine shadow (works when binding shadow is very pronounced)
     search_start = int(w * 0.1)
     search_end = int(w * 0.9)
-    spine_result = detect_spine_dark_band(gray, bottom, search_start, search_end)
+    spine_result = detect_spine_dark_band(gray, bottom, search_start, search_end, dpi)
 
     if spine_result is not None:
         spine_center, spine_width = spine_result
@@ -614,14 +624,16 @@ def detect_page_bounds(image, dpi=300):
 
     # Strategy 5: Edge trim — scan inward from each edge looking for
     # uniform bright strips. Uses a narrow center band to avoid artifacts.
-    strip_check = min(200, (bottom - top) // 20, (right - left) // 20)
-    if strip_check > 20:
+    max_strip = int(200 * dpi_scale)
+    strip_check = min(max_strip, (bottom - top) // 20, (right - left) // 20)
+    max_band = int(600 * dpi_scale)
+    if strip_check > int(20 * dpi_scale):
         mid_y = (top + bottom) // 2
-        band_h = min(600, (bottom - top) // 3)
+        band_h = min(max_band, (bottom - top) // 3)
         band_top = mid_y - band_h // 2
         band_bot = mid_y + band_h // 2
         mid_x = (left + right) // 2
-        band_w = min(600, (right - left) // 3)
+        band_w = min(max_band, (right - left) // 3)
         band_left = mid_x - band_w // 2
         band_right = mid_x + band_w // 2
 

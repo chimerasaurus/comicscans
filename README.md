@@ -22,17 +22,61 @@ raw-scans/DS9E17/            comicscans.py              comicpackage.py
 
 The workflow is split into two scripts so you can inspect the processed pages before packaging, and re-package with different metadata without reprocessing.
 
-| Script | Purpose |
-|--------|---------|
-| `comicscans.py` | Image processing: page detection, rotation, deskew, bleed removal, normalization |
-| `comicpackage.py` | Quality control, ComicInfo.xml metadata, CBZ archive creation |
+| Tool | Purpose |
+|------|---------|
+| `comicscans.py` | CLI image processing: page detection, rotation, deskew, bleed removal, normalization |
+| `comicpackage.py` | CLI quality control, ComicInfo.xml metadata, CBZ archive creation |
+| `webapp/` | Interactive web UI for the full workflow — visual crop editing, batch processing, CBZ packaging with ComicVine metadata |
+
+---
+
+## Web App
+
+The web app provides an interactive UI for the entire scanning workflow. Load a directory of raw scans, visually adjust crop boundaries and rotation for each page, batch-process everything, and package the result into a CBZ — all from the browser.
+
+### Launch
+
+```bash
+python3 webapp/server.py
+# Opens at http://localhost:8000
+```
+
+### Grid View
+
+Thumbnails of all loaded scans with detection status badges. Click any page to open the editor.
+
+![Grid view](docs/webui-grid.png)
+
+### Editor View
+
+Per-page controls for rotation, 180° flip, and corner adjustment. Drag the corner handles to fine-tune crop boundaries. Changes auto-save to a session file in the input directory so you can pick up where you left off.
+
+![Editor view](docs/webui-editor.png)
+
+### Features
+
+- **Directory browser** — built-in file picker for input/output paths (no OS dialog needed)
+- **Auto-detection** — detect page bounds for all scans in one click
+- **Visual crop editor** — drag corner handles with zoom lens for precision; real-time rotation preview
+- **Session persistence** — detections and manual overrides saved to `.comicscans_session.json` in the input directory, restored automatically on reload
+- **Batch processing** — process all pages to JPG or WebP at configurable quality
+- **CBZ creation** — search ComicVine for series/issue metadata, review and edit fields, package into a CBZ archive
+- **Themes** — Dark, Light, Solarized, Cyberpunk, and Dune color schemes
+
+### Web App Dependencies
+
+The web app requires two additional Python packages (on top of the base requirements):
+
+```bash
+pip install fastapi uvicorn
+```
 
 ---
 
 ## Installation
 
 ```bash
-# Python dependencies
+# Python dependencies (includes web app)
 pip install -r requirements.txt
 
 # External dependency (required for --auto-rotate)
@@ -45,7 +89,8 @@ brew install tesseract
 - OpenCV (`opencv-python >= 4.8`)
 - Pillow (`>= 10.0`)
 - NumPy (`>= 1.24`)
-- [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) (optional, for automatic orientation detection)
+- FastAPI (`>= 0.110`) and Uvicorn (`>= 0.29`) — for the web app
+- [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) (optional, for automatic orientation detection via CLI)
 
 ---
 

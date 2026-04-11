@@ -1,5 +1,5 @@
 // =============================================================================
-// Comic Scan Processor — Frontend Application
+// ComicScans — Frontend Application
 // =============================================================================
 
 // ===== State Management =====
@@ -27,6 +27,7 @@ const dom = {
     qualityInput:   document.getElementById('quality-input'),
     btnLoad:        document.getElementById('btn-load'),
     btnDetectAll:   document.getElementById('btn-detect-all'),
+    btnClearSession:document.getElementById('btn-clear-session'),
     btnProcessAll:  document.getElementById('btn-process-all'),
     gridView:       document.getElementById('grid-view'),
     gridContainer:  document.getElementById('grid-container'),
@@ -50,6 +51,7 @@ const dom = {
     progressBar:    document.getElementById('progress-bar'),
     progressText:   document.getElementById('progress-text'),
     btnCloseModal:  document.getElementById('btn-close-modal'),
+    btnCreateCBZ:   document.getElementById('btn-create-cbz'),
 };
 
 // Canvas contexts
@@ -87,7 +89,9 @@ async function apiGet(path) {
     return resp.json();
 }
 
-/** Create a new session from an input directory. */
+/** Create a new session from an input directory.
+ *  If a .comicscans_session.json exists in the directory, the server loads
+ *  its detections/overrides and returns them inline for immediate restore. */
 async function createSession(inputDir) {
     const data = await apiPost('/api/session/create', { input_dir: inputDir });
     state.sessionId = data.session_id;
@@ -95,6 +99,19 @@ async function createSession(inputDir) {
     state.detections = {};
     state.overrides = {};
     state.currentPage = null;
+
+    // Restore saved detections and overrides from the server response
+    if (data.detections) {
+        for (const [idx, det] of Object.entries(data.detections)) {
+            state.detections[parseInt(idx)] = det;
+        }
+    }
+    if (data.overrides) {
+        for (const [idx, ovr] of Object.entries(data.overrides)) {
+            state.overrides[parseInt(idx)] = ovr;
+        }
+    }
+
     return data;
 }
 
@@ -261,6 +278,10 @@ function openEditor(pageIndex) {
 
     const page = state.pages[pageIndex];
     dom.editorTitle.textContent = page.filename || `Page ${pageIndex}`;
+
+    // Update nav label
+    const navLabel = document.getElementById('nav-page-label');
+    if (navLabel) navLabel.textContent = `${pageIndex + 1} / ${state.pages.length}`;
 
     loadEditorImage(pageIndex);
 }
@@ -689,9 +710,25 @@ dom.btnRotate180.addEventListener('click', () => {
     state.overrides[pageIndex].rotate180 = !current;
     dom.rotate180Status.textContent = !current ? 'On' : 'Off';
 
-    // Redraw the background image with/without 180 rotation
-    drawBackgroundImage();
-    drawOverlay();
+    // Transform existing corners to match the new orientation.
+    // Flipping 180° maps (x, y) → (W - x, H - y), and the corner roles
+    // swap: TL↔BR, TR↔BL.
+    const page = state.pages[pageIndex];
+    if (page && state.overrides[pageIndex].corners) {
+        const W = page.width;
+        const H = page.height;
+        const c = state.overrides[pageIndex].corners;
+        // c = [TL, TR, BR, BL] → after 180° each point mirrors and roles swap
+        state.overrides[pageIndex].corners = [
+            [W - c[2][0], H - c[2][1]],  // new TL = old BR mirrored
+            [W - c[3][0], H - c[3][1]],  // new TR = old BL mirrored
+            [W - c[0][0], H - c[0][1]],  // new BR = old TL mirrored
+            [W - c[1][0], H - c[1][1]],  // new BL = old TR mirrored
+        ];
+    }
+
+    // Reload the image with the new rotation so the display matches
+    loadEditorImage(pageIndex);
 });
 
 // Reset to auto-detected values
@@ -835,6 +872,33 @@ dom.btnDetectAll.addEventListener('click', async () => {
     }
 });
 
+// Clear Cache button
+dom.btnClearSession.addEventListener('click', async () => {
+    if (!state.sessionId) {
+        alert('No session loaded.');
+        return;
+    }
+
+    if (!confirm('Clear all saved detections and overrides? You will need to re-detect all pages.')) {
+        return;
+    }
+
+    try {
+        await apiPost(`/api/session/${state.sessionId}/clear-cache`);
+        state.detections = {};
+        state.overrides = {};
+        // Reset grid badges
+        renderGrid();
+        // If editor is open, reset the overlay
+        if (state.currentPage !== null) {
+            loadDetectionOverlay(state.currentPage);
+        }
+    } catch (err) {
+        console.error('Clear cache failed:', err);
+        alert('Failed to clear cache: ' + err.message);
+    }
+});
+
 // Process All button
 dom.btnProcessAll.addEventListener('click', async () => {
     if (!state.sessionId) {
@@ -930,7 +994,399 @@ window.addEventListener('resize', () => {
     }
 });
 
+// ===== CBZ Creation =====
+
+const cbzDom = {
+    modal: document.getElementById('cbz-modal'),
+    apiKeyInput: document.getElementById('cv-api-key'),
+    btnSaveKey: document.getElementById('btn-save-api-key'),
+    keyStatus: document.getElementById('cv-key-status'),
+    searchInput: document.getElementById('cv-search-input'),
+    btnSearch: document.getElementById('btn-cv-search'),
+    searchResults: document.getElementById('cv-search-results'),
+    stepSearch: document.getElementById('cbz-step-search'),
+    stepIssue: document.getElementById('cbz-step-issue'),
+    stepMetadata: document.getElementById('cbz-step-metadata'),
+    selectedSeriesName: document.getElementById('cv-selected-series-name'),
+    btnBackSearch: document.getElementById('btn-cv-back-search'),
+    issueNumberInput: document.getElementById('cv-issue-number'),
+    btnFindIssue: document.getElementById('btn-cv-find-issue'),
+    issueUrlInput: document.getElementById('cv-issue-url'),
+    btnUseUrl: document.getElementById('btn-cv-use-url'),
+    issueResults: document.getElementById('cv-issue-results'),
+    btnBackIssue: document.getElementById('btn-cv-back-issue'),
+    btnCreateGo: document.getElementById('btn-create-cbz-go'),
+    btnCancel: document.getElementById('btn-cbz-cancel'),
+    btnClose: document.getElementById('btn-cbz-close'),
+};
+
+let cbzState = {
+    selectedVolume: null,  // {id, name, publisher, start_year}
+    selectedIssue: null,   // issue metadata from CV
+};
+
+// Open CBZ modal
+dom.btnCreateCBZ.addEventListener('click', async () => {
+    if (!state.sessionId) {
+        alert('Load a directory first.');
+        return;
+    }
+    const outputDir = dom.outputDir.value.trim();
+    if (!outputDir) {
+        alert('Please enter an output directory (pages must be processed first).');
+        return;
+    }
+
+    cbzState = { selectedVolume: null, selectedIssue: null };
+    cbzDom.stepIssue.classList.add('hidden');
+    cbzDom.stepMetadata.classList.add('hidden');
+    cbzDom.stepSearch.classList.remove('hidden');
+    cbzDom.searchResults.innerHTML = '';
+    cbzDom.issueResults.innerHTML = '';
+    cbzDom.modal.classList.remove('hidden');
+
+    // Check API key status
+    try {
+        const resp = await apiGet('/api/config/api-key');
+        if (resp.has_key) {
+            cbzDom.keyStatus.textContent = `API key saved (${resp.masked})`;
+            cbzDom.apiKeyInput.placeholder = 'Key saved — enter new key to replace';
+        } else {
+            cbzDom.keyStatus.innerHTML = 'No API key saved. <a href="https://comicvine.gamespot.com/api/" target="_blank">Get one here</a>';
+        }
+    } catch (e) {
+        console.error('Failed to check API key:', e);
+    }
+});
+
+// Save API key
+cbzDom.btnSaveKey.addEventListener('click', async () => {
+    const key = cbzDom.apiKeyInput.value.trim();
+    if (!key) return;
+    try {
+        await apiPost('/api/config/api-key', { api_key: key });
+        cbzDom.keyStatus.textContent = 'API key saved!';
+        cbzDom.apiKeyInput.value = '';
+        cbzDom.apiKeyInput.placeholder = 'Key saved — enter new key to replace';
+    } catch (e) {
+        cbzDom.keyStatus.textContent = 'Failed to save key: ' + e.message;
+    }
+});
+
+// Search volumes
+cbzDom.btnSearch.addEventListener('click', async () => {
+    const query = cbzDom.searchInput.value.trim();
+    if (!query) return;
+    cbzDom.btnSearch.disabled = true;
+    cbzDom.btnSearch.textContent = 'Searching...';
+    cbzDom.searchResults.innerHTML = '';
+
+    try {
+        const data = await apiPost('/api/comicvine/search', { query });
+        if (data.results.length === 0) {
+            cbzDom.searchResults.innerHTML = '<p class="cbz-hint">No results found.</p>';
+        } else {
+            data.results.forEach(vol => {
+                const item = document.createElement('div');
+                item.className = 'cbz-result-item';
+                item.innerHTML = `
+                    <img src="${vol.image_url || ''}" alt="" onerror="this.style.display='none'">
+                    <div class="cbz-result-info">
+                        <div class="name">${escapeHtml(vol.name)}</div>
+                        <div class="detail">${escapeHtml(vol.publisher || 'Unknown')} · ${vol.start_year || '?'} · ${vol.count_of_issues || '?'} issues</div>
+                    </div>
+                `;
+                item.addEventListener('click', () => selectVolume(vol));
+                cbzDom.searchResults.appendChild(item);
+            });
+        }
+    } catch (e) {
+        cbzDom.searchResults.innerHTML = `<p class="cbz-hint" style="color:#e94560">${e.message}</p>`;
+    } finally {
+        cbzDom.btnSearch.disabled = false;
+        cbzDom.btnSearch.textContent = 'Search';
+    }
+});
+
+// Allow Enter key in search
+cbzDom.searchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') cbzDom.btnSearch.click();
+});
+
+cbzDom.issueNumberInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') cbzDom.btnFindIssue.click();
+});
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+}
+
+// Select a volume/series
+function selectVolume(vol) {
+    cbzState.selectedVolume = vol;
+    cbzDom.selectedSeriesName.textContent = `${vol.name} (${vol.publisher || 'Unknown'}, ${vol.start_year || '?'})`;
+    cbzDom.stepSearch.classList.add('hidden');
+    cbzDom.stepIssue.classList.remove('hidden');
+    cbzDom.issueResults.innerHTML = '';
+}
+
+// Back to search
+cbzDom.btnBackSearch.addEventListener('click', () => {
+    cbzDom.stepIssue.classList.add('hidden');
+    cbzDom.stepMetadata.classList.add('hidden');
+    cbzDom.stepSearch.classList.remove('hidden');
+});
+
+// Find issue by number
+cbzDom.btnFindIssue.addEventListener('click', async () => {
+    const num = cbzDom.issueNumberInput.value.trim();
+    if (!num || !cbzState.selectedVolume) return;
+    cbzDom.btnFindIssue.disabled = true;
+    cbzDom.btnFindIssue.textContent = 'Finding...';
+    cbzDom.issueResults.innerHTML = '';
+
+    try {
+        const data = await apiPost('/api/comicvine/issues', {
+            volume_id: cbzState.selectedVolume.id,
+            issue_number: num,
+        });
+        if (data.results.length === 0) {
+            cbzDom.issueResults.innerHTML = '<p class="cbz-hint">No matching issue found.</p>';
+        } else {
+            data.results.forEach(issue => {
+                const item = document.createElement('div');
+                item.className = 'cbz-result-item';
+                item.innerHTML = `
+                    <img src="${issue.image_url || ''}" alt="" onerror="this.style.display='none'">
+                    <div class="cbz-result-info">
+                        <div class="name">#${escapeHtml(issue.issue_number || '?')}${issue.name ? ' — ' + escapeHtml(issue.name) : ''}</div>
+                        <div class="detail">${issue.cover_date || 'No date'}</div>
+                    </div>
+                `;
+                item.addEventListener('click', () => selectIssue(issue.id));
+                cbzDom.issueResults.appendChild(item);
+            });
+        }
+    } catch (e) {
+        cbzDom.issueResults.innerHTML = `<p class="cbz-hint" style="color:#e94560">${e.message}</p>`;
+    } finally {
+        cbzDom.btnFindIssue.disabled = false;
+        cbzDom.btnFindIssue.textContent = 'Find';
+    }
+});
+
+// Use ComicVine URL to extract issue ID
+cbzDom.btnUseUrl.addEventListener('click', async () => {
+    const url = cbzDom.issueUrlInput.value.trim();
+    if (!url) return;
+    // Extract issue ID from URL like https://comicvine.gamespot.com/star-trek.../4000-12345/
+    const match = url.match(/4000-(\d+)/);
+    if (match) {
+        await selectIssue(parseInt(match[1]));
+    } else {
+        alert('Could not extract issue ID from URL. Expected format: .../4000-XXXXX/');
+    }
+});
+
+// Select an issue and fetch full metadata
+async function selectIssue(issueId) {
+    try {
+        const detail = await apiPost('/api/comicvine/issue-detail', { issue_id: issueId });
+        cbzState.selectedIssue = detail;
+
+        // Populate metadata fields
+        document.getElementById('meta-series').value = detail.series || (cbzState.selectedVolume ? cbzState.selectedVolume.name : '');
+        document.getElementById('meta-title').value = detail.name || '';
+        document.getElementById('meta-number').value = detail.issue_number || '';
+        document.getElementById('meta-year').value = detail.year || '';
+        document.getElementById('meta-month').value = detail.month || '';
+        document.getElementById('meta-publisher').value = cbzState.selectedVolume ? (cbzState.selectedVolume.publisher || '') : '';
+        document.getElementById('meta-writer').value = detail.writer || '';
+        document.getElementById('meta-penciller').value = detail.penciller || '';
+        document.getElementById('meta-inker').value = detail.inker || '';
+        document.getElementById('meta-colorist').value = detail.colorist || '';
+        document.getElementById('meta-editor').value = detail.editor || '';
+        document.getElementById('meta-characters').value = detail.characters || '';
+        document.getElementById('meta-summary').value = detail.description || '';
+
+        cbzDom.stepIssue.classList.add('hidden');
+        cbzDom.stepMetadata.classList.remove('hidden');
+    } catch (e) {
+        alert('Failed to fetch issue details: ' + e.message);
+    }
+}
+
+// Back to issue selection
+cbzDom.btnBackIssue.addEventListener('click', () => {
+    cbzDom.stepMetadata.classList.add('hidden');
+    cbzDom.stepIssue.classList.remove('hidden');
+});
+
+// Create CBZ
+cbzDom.btnCreateGo.addEventListener('click', async () => {
+    const outputDir = dom.outputDir.value.trim();
+    if (!outputDir) {
+        alert('Please enter an output directory.');
+        return;
+    }
+
+    const metadata = {
+        series: document.getElementById('meta-series').value,
+        title: document.getElementById('meta-title').value,
+        number: document.getElementById('meta-number').value,
+        year: document.getElementById('meta-year').value,
+        month: document.getElementById('meta-month').value,
+        publisher: document.getElementById('meta-publisher').value,
+        writer: document.getElementById('meta-writer').value,
+        penciller: document.getElementById('meta-penciller').value,
+        inker: document.getElementById('meta-inker').value,
+        colorist: document.getElementById('meta-colorist').value,
+        editor: document.getElementById('meta-editor').value,
+        characters: document.getElementById('meta-characters').value,
+        summary: document.getElementById('meta-summary').value,
+    };
+
+    cbzDom.btnCreateGo.disabled = true;
+    cbzDom.btnCreateGo.textContent = 'Creating...';
+
+    try {
+        const result = await apiPost(`/api/session/${state.sessionId}/create-cbz`, {
+            output_dir: outputDir,
+            metadata: metadata,
+        });
+        alert(`CBZ created!\n${result.cbz_path}\n${result.size_mb} MB, ${result.pages} pages`);
+        cbzDom.modal.classList.add('hidden');
+    } catch (e) {
+        alert('Failed to create CBZ: ' + e.message);
+    } finally {
+        cbzDom.btnCreateGo.disabled = false;
+        cbzDom.btnCreateGo.textContent = 'Create CBZ';
+    }
+});
+
+// Cancel / Close
+cbzDom.btnCancel.addEventListener('click', () => {
+    cbzDom.modal.classList.add('hidden');
+});
+cbzDom.btnClose.addEventListener('click', () => {
+    cbzDom.modal.classList.add('hidden');
+});
+
+// ===== Theme Switching =====
+
+const themeSelect = document.getElementById('theme-select');
+
+function setTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('comicscans-theme', theme);
+    themeSelect.value = theme;
+}
+
+// Restore saved theme
+const savedTheme = localStorage.getItem('comicscans-theme') || 'dark';
+setTheme(savedTheme);
+
+themeSelect.addEventListener('change', () => {
+    setTheme(themeSelect.value);
+});
+
+// ===== File Picker =====
+
+const fpDom = {
+    modal: document.getElementById('filepicker-modal'),
+    title: document.getElementById('fp-title'),
+    pathInput: document.getElementById('fp-path-input'),
+    entries: document.getElementById('fp-entries'),
+    btnUp: document.getElementById('btn-fp-up'),
+    btnGo: document.getElementById('btn-fp-go'),
+    btnSelect: document.getElementById('btn-fp-select'),
+    btnClose: document.getElementById('btn-fp-close'),
+};
+
+let fpState = {
+    currentPath: '',
+    targetInput: null,  // which input element to set the result on
+};
+
+/** Open the file picker for a given input element. */
+function openFilePicker(targetInput, title) {
+    fpState.targetInput = targetInput;
+    fpDom.title.textContent = title || 'Select Directory';
+    const startPath = targetInput.value.trim() || '';
+    fpDom.modal.classList.remove('hidden');
+    browseDir(startPath);
+}
+
+/** Browse a directory and render entries. */
+async function browseDir(path) {
+    try {
+        const data = await apiPost('/api/browse', { path: path || '' });
+        fpState.currentPath = data.current;
+        fpDom.pathInput.value = data.current;
+        fpDom.entries.innerHTML = '';
+
+        // Parent directory entry
+        if (data.parent) {
+            const el = document.createElement('div');
+            el.className = 'fp-entry is-dir';
+            el.innerHTML = '<span class="fp-entry-icon">\u2191</span><span class="fp-entry-name">..</span>';
+            el.addEventListener('click', () => browseDir(data.parent));
+            fpDom.entries.appendChild(el);
+        }
+
+        for (const entry of data.entries) {
+            const el = document.createElement('div');
+            el.className = 'fp-entry' + (entry.is_dir ? ' is-dir' : '');
+            const icon = entry.is_dir ? '\uD83D\uDCC1' : '\uD83D\uDCC4';
+            el.innerHTML = `<span class="fp-entry-icon">${icon}</span><span class="fp-entry-name">${escapeHtml(entry.name)}</span>`;
+            if (entry.is_dir) {
+                el.addEventListener('click', () => browseDir(entry.path));
+            }
+            fpDom.entries.appendChild(el);
+        }
+    } catch (e) {
+        fpDom.entries.innerHTML = `<p class="hint" style="padding:12px;color:var(--accent)">${e.message}</p>`;
+    }
+}
+
+// File picker events
+document.getElementById('btn-browse-input').addEventListener('click', () => {
+    openFilePicker(dom.inputDir, 'Select Scan Directory');
+});
+
+document.getElementById('btn-browse-output').addEventListener('click', () => {
+    openFilePicker(dom.outputDir, 'Select Output Directory');
+});
+
+fpDom.btnUp.addEventListener('click', () => {
+    const parts = fpState.currentPath.split('/');
+    if (parts.length > 1) {
+        parts.pop();
+        browseDir(parts.join('/') || '/');
+    }
+});
+
+fpDom.btnGo.addEventListener('click', () => {
+    browseDir(fpDom.pathInput.value.trim());
+});
+
+fpDom.pathInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') fpDom.btnGo.click();
+});
+
+fpDom.btnSelect.addEventListener('click', () => {
+    if (fpState.targetInput) {
+        fpState.targetInput.value = fpState.currentPath;
+    }
+    fpDom.modal.classList.add('hidden');
+});
+
+fpDom.btnClose.addEventListener('click', () => {
+    fpDom.modal.classList.add('hidden');
+});
+
 // ===== Initialization =====
 
-// Nothing to initialize on page load — user must click Load first.
-console.log('Comic Scan Processor frontend loaded.');
+console.log('ComicScans frontend loaded.');

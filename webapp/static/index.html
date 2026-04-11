@@ -1,32 +1,50 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Comic Scan Processor</title>
+    <title>ComicScans</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
     <!-- Top Bar -->
     <header id="topbar">
-        <div class="topbar-group">
-            <label for="input-dir">Directory:</label>
-            <input type="text" id="input-dir" placeholder="/path/to/scans" spellcheck="false">
-            <button id="btn-load">Load</button>
-        </div>
-        <div class="topbar-group">
-            <button id="btn-detect-all">Detect All</button>
-        </div>
-        <div class="topbar-group">
-            <label for="output-dir">Output:</label>
-            <input type="text" id="output-dir" placeholder="/path/to/output" spellcheck="false">
-            <select id="format-select">
-                <option value="jpg">JPG</option>
-                <option value="webp">WebP</option>
-            </select>
-            <label for="quality-input">Q:</label>
-            <input type="number" id="quality-input" value="92" min="1" max="100">
-            <button id="btn-process-all">Process All</button>
+        <div class="topbar-row">
+            <div class="topbar-left">
+                <span class="app-logo">ComicScans</span>
+                <div class="input-group">
+                    <input type="text" id="input-dir" placeholder="Scan directory..." spellcheck="false">
+                    <button id="btn-browse-input" class="btn-icon-sm" title="Browse...">&#128193;</button>
+                    <button id="btn-load" class="btn-sm" title="Load scans from directory">Load</button>
+                </div>
+            </div>
+            <div class="topbar-right">
+                <button id="btn-detect-all" class="btn-secondary btn-sm" title="Auto-detect page bounds">Detect All</button>
+                <button id="btn-clear-session" class="btn-secondary btn-sm" title="Clear saved session data">Clear Cache</button>
+                <div class="separator"></div>
+                <div class="input-group compact">
+                    <input type="text" id="output-dir" placeholder="Output directory..." spellcheck="false">
+                    <button id="btn-browse-output" class="btn-icon-sm" title="Browse...">&#128193;</button>
+                    <select id="format-select" title="Output format">
+                        <option value="jpg">JPG</option>
+                        <option value="webp">WebP</option>
+                    </select>
+                    <div class="quality-control">
+                        <span class="quality-label">Q</span>
+                        <input type="number" id="quality-input" value="92" min="1" max="100">
+                    </div>
+                </div>
+                <button id="btn-process-all" class="btn-sm" title="Process all pages">Process</button>
+                <button id="btn-create-cbz" class="btn-sm" title="Create CBZ archive">CBZ</button>
+                <div class="separator"></div>
+                <select id="theme-select" title="Theme">
+                    <option value="dark">Dark</option>
+                    <option value="light">Light</option>
+                    <option value="solarized">Solarized</option>
+                    <option value="cyberpunk">Cyberpunk</option>
+                    <option value="dune">Dune</option>
+                </select>
+            </div>
         </div>
     </header>
 
@@ -48,51 +66,154 @@
             </div>
         </div>
         <div id="editor-controls">
-            <h2 id="editor-title">Page</h2>
-
-            <div class="control-group">
-                <label>Rotation: <span id="rotation-value">0.00</span>&deg;</label>
-                <input type="range" id="rotation-slider" min="-5" max="5" step="0.01" value="0">
+            <div class="editor-header">
+                <h2 id="editor-title">Page</h2>
+                <button id="btn-close-editor" class="btn-icon" title="Back to grid">&times;</button>
             </div>
 
             <div class="control-group">
-                <button id="btn-rotate180">Toggle 180&deg;</button>
+                <label>Rotation <span id="rotation-value">0.00</span>&deg;</label>
+                <input type="range" id="rotation-slider" min="-5" max="5" step="0.01" value="0">
+            </div>
+
+            <div class="control-group inline">
+                <button id="btn-rotate180" class="btn-secondary btn-sm">180&deg;</button>
                 <span id="rotate180-status" class="status-label">Off</span>
             </div>
 
             <div class="control-group">
-                <h3>Corners (original px)</h3>
+                <label class="section-label">Corners</label>
                 <div id="corner-display">
-                    <div class="corner-row"><span class="corner-label">TL:</span> <span id="corner-0">--</span></div>
-                    <div class="corner-row"><span class="corner-label">TR:</span> <span id="corner-1">--</span></div>
-                    <div class="corner-row"><span class="corner-label">BR:</span> <span id="corner-2">--</span></div>
-                    <div class="corner-row"><span class="corner-label">BL:</span> <span id="corner-3">--</span></div>
+                    <div class="corner-row"><span class="corner-label">TL</span><span id="corner-0">--</span></div>
+                    <div class="corner-row"><span class="corner-label">TR</span><span id="corner-1">--</span></div>
+                    <div class="corner-row"><span class="corner-label">BR</span><span id="corner-2">--</span></div>
+                    <div class="corner-row"><span class="corner-label">BL</span><span id="corner-3">--</span></div>
                 </div>
             </div>
 
             <div class="control-group button-row">
-                <button id="btn-reset">Reset to Auto</button>
-                <button id="btn-preview">Preview</button>
-                <button id="btn-apply">Apply</button>
+                <button id="btn-reset" class="btn-secondary btn-sm">Reset</button>
+                <button id="btn-preview" class="btn-secondary btn-sm">Preview</button>
+                <button id="btn-apply" class="btn-sm">Apply</button>
             </div>
 
             <div class="control-group nav-row">
-                <button id="btn-prev">&larr; Prev</button>
-                <button id="btn-close-editor">Back to Grid</button>
-                <button id="btn-next">Next &rarr;</button>
+                <button id="btn-prev" class="btn-nav">&larr;</button>
+                <span class="nav-label" id="nav-page-label">1 / 1</span>
+                <button id="btn-next" class="btn-nav">&rarr;</button>
             </div>
         </div>
     </div>
 
     <!-- Progress Modal -->
-    <div id="progress-modal" class="hidden">
-        <div id="progress-content">
+    <div id="progress-modal" class="modal-backdrop hidden">
+        <div class="modal-panel">
             <h2 id="progress-title">Processing...</h2>
             <div id="progress-bar-container">
                 <div id="progress-bar"></div>
             </div>
             <p id="progress-text">Initializing...</p>
             <button id="btn-close-modal" class="hidden">Close</button>
+        </div>
+    </div>
+
+    <!-- CBZ Creation Modal -->
+    <div id="cbz-modal" class="modal-backdrop hidden">
+        <div class="modal-panel modal-wide">
+            <button id="btn-cbz-close" class="modal-close">&times;</button>
+            <h2>Create CBZ Archive</h2>
+
+            <!-- Step 1: API Key -->
+            <div id="cbz-step-apikey" class="cbz-step">
+                <div class="cbz-field">
+                    <label>ComicVine API Key</label>
+                    <div class="row-input">
+                        <input type="password" id="cv-api-key" placeholder="Enter your ComicVine API key">
+                        <button id="btn-save-api-key" class="btn-sm">Save</button>
+                    </div>
+                    <p class="hint" id="cv-key-status">No API key saved. <a href="https://comicvine.gamespot.com/api/" target="_blank">Get one here</a></p>
+                </div>
+            </div>
+
+            <!-- Step 2: Search -->
+            <div id="cbz-step-search" class="cbz-step">
+                <div class="cbz-field">
+                    <label>Search Series</label>
+                    <div class="row-input">
+                        <input type="text" id="cv-search-input" placeholder="e.g. Star Trek Deep Space Nine">
+                        <button id="btn-cv-search" class="btn-sm">Search</button>
+                    </div>
+                </div>
+                <div id="cv-search-results" class="cbz-results"></div>
+            </div>
+
+            <!-- Step 3: Issue Selection -->
+            <div id="cbz-step-issue" class="cbz-step hidden">
+                <div class="cbz-series-header">
+                    <span id="cv-selected-series-name"></span>
+                    <button id="btn-cv-back-search" class="btn-link">&larr; Change</button>
+                </div>
+                <div class="cbz-field">
+                    <label>Issue Number</label>
+                    <div class="row-input">
+                        <input type="text" id="cv-issue-number" placeholder="e.g. 17">
+                        <button id="btn-cv-find-issue" class="btn-sm">Find</button>
+                    </div>
+                </div>
+                <p class="hint">Or paste a ComicVine issue URL:</p>
+                <div class="cbz-field">
+                    <div class="row-input">
+                        <input type="text" id="cv-issue-url" placeholder="https://comicvine.gamespot.com/...">
+                        <button id="btn-cv-use-url" class="btn-sm btn-secondary">Use URL</button>
+                    </div>
+                </div>
+                <div id="cv-issue-results" class="cbz-results"></div>
+            </div>
+
+            <!-- Step 4: Metadata Review & Create -->
+            <div id="cbz-step-metadata" class="cbz-step hidden">
+                <button id="btn-cv-back-issue" class="btn-link">&larr; Back to issue selection</button>
+                <label class="section-label">Metadata</label>
+                <div class="meta-grid">
+                    <label>Series</label><input type="text" id="meta-series">
+                    <label>Title</label><input type="text" id="meta-title">
+                    <label>Number</label><input type="text" id="meta-number">
+                    <label>Year</label><input type="text" id="meta-year">
+                    <label>Month</label><input type="text" id="meta-month">
+                    <label>Publisher</label><input type="text" id="meta-publisher">
+                    <label>Writer</label><input type="text" id="meta-writer">
+                    <label>Penciller</label><input type="text" id="meta-penciller">
+                    <label>Inker</label><input type="text" id="meta-inker">
+                    <label>Colorist</label><input type="text" id="meta-colorist">
+                    <label>Editor</label><input type="text" id="meta-editor">
+                    <label>Characters</label><textarea id="meta-characters" rows="2"></textarea>
+                </div>
+                <div class="cbz-field">
+                    <label>Summary</label>
+                    <textarea id="meta-summary" rows="3"></textarea>
+                </div>
+                <div class="button-row" style="margin-top:12px">
+                    <button id="btn-create-cbz-go" class="btn-sm">Create CBZ</button>
+                    <button id="btn-cbz-cancel" class="btn-secondary btn-sm">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Picker Modal -->
+    <div id="filepicker-modal" class="modal-backdrop hidden">
+        <div class="modal-panel modal-wide">
+            <button id="btn-fp-close" class="modal-close">&times;</button>
+            <h2 id="fp-title">Select Directory</h2>
+            <div class="fp-path-bar">
+                <button id="btn-fp-up" class="btn-icon-sm" title="Go up">&#8593;</button>
+                <input type="text" id="fp-path-input" spellcheck="false">
+                <button id="btn-fp-go" class="btn-sm btn-secondary">Go</button>
+            </div>
+            <div id="fp-entries" class="fp-entries"></div>
+            <div class="fp-footer">
+                <button id="btn-fp-select" class="btn-sm">Select This Directory</button>
+            </div>
         </div>
     </div>
 
