@@ -246,7 +246,7 @@ def detect_spine_dark_band(gray, content_bottom, search_start, search_end,
 
 
 def detect_bleed_boundary(gray, content_top, content_bottom,
-                          content_left, content_right, dpi):
+                          content_left, content_right, dpi, params=None):
     """Detect two-page bleed using expected page width from DPI.
 
     Pages are always placed in the top-left corner of the scanner. When a
@@ -259,11 +259,19 @@ def detect_bleed_boundary(gray, content_top, content_bottom,
 
     Returns (crop_col, method_str) or None.
     """
+    bp = params or {}
+    bleed_trigger_ratio = bp.get("bleed_trigger_ratio", 1.05)
+    bleed_search_pct = bp.get("bleed_search_pct", 0.08)
+    gutter_peak_offset = bp.get("gutter_peak_offset", 9.8517)
+    trough_depth = bp.get("trough_depth", 6.0895)
+    trough_rise = bp.get("trough_rise", 4)
+    gradient_min = bp.get("gradient_min", 2.0298)
+
     content_width = content_right - content_left
     expected_page_px = int(dpi * COMIC_PAGE_WIDTH_INCHES)
 
-    # Only trigger if content is at least 5% wider than a single page
-    if content_width < expected_page_px * 1.05:
+    # Only trigger if content is wider than expected single page
+    if content_width < expected_page_px * bleed_trigger_ratio:
         return None
 
     h = min(content_bottom, gray.shape[0])
@@ -287,7 +295,7 @@ def detect_bleed_boundary(gray, content_top, content_bottom,
 
     # Search in a window around the expected boundary for the best cut point
     dpi_scale = dpi / 300.0
-    search_radius = int(expected_page_px * 0.08)  # ~8% tolerance
+    search_radius = int(expected_page_px * bleed_search_pct)
     edge_margin = int(50 * dpi_scale)
     win_start = max(content_left + edge_margin, expected_boundary - search_radius)
     win_end = min(content_right - edge_margin, expected_boundary + search_radius)
@@ -324,7 +332,7 @@ def detect_bleed_boundary(gray, content_top, content_bottom,
         peak_idx_in_valid = np.argmax(valid_region)
         peak_val = valid_region[peak_idx_in_valid]
         peak_idx = valid_start + peak_idx_in_valid
-        if peak_val > overall_mean + 10:
+        if peak_val > overall_mean + gutter_peak_offset:
             # Walk from the peak toward the main page side until brightness
             # drops below the midpoint between peak and the page content level.
             threshold = (peak_val + overall_mean) / 2
@@ -361,7 +369,7 @@ def detect_bleed_boundary(gray, content_top, content_bottom,
 
         trough_idx_in_valid = np.argmin(valid_region)
         trough_val = valid_region[trough_idx_in_valid]
-        if trough_val < overall_mean - 6:
+        if trough_val < overall_mean - trough_depth:
             # Verify it's a true local minimum (V-shape), not just the low
             # end of a brightness gradient. Check that the brightness rises
             # on both sides of the trough within a local neighborhood.
@@ -372,7 +380,7 @@ def detect_bleed_boundary(gray, content_top, content_bottom,
                 left_max = left_region.max()
                 right_max = right_region.max()
                 # Both sides must be at least 4 brightness points above the trough
-                if left_max > trough_val + 4 and right_max > trough_val + 4:
+                if left_max > trough_val + trough_rise and right_max > trough_val + trough_rise:
                     cut_col = win_start + valid_start + trough_idx_in_valid
                     return cut_col, 'dark_trough'
 
@@ -392,7 +400,7 @@ def detect_bleed_boundary(gray, content_top, content_bottom,
 
         grad_idx = np.argmax(weighted_gradient)
         grad_val = gradient[grad_idx]
-        if grad_val > 2.0:
+        if grad_val > gradient_min:
             cut_col = win_start + grad_idx
             return cut_col, 'gradient'
 
@@ -522,7 +530,7 @@ def _deskew_gray(gray, angle, fill_value):
     return rotated
 
 
-def detect_page_bounds(image, dpi=300):
+def detect_page_bounds(image, dpi=300, params=None):
     """Detect the comic page boundaries within a scanner image.
 
     Two-pass approach:
@@ -533,6 +541,16 @@ def detect_page_bounds(image, dpi=300):
 
     Returns dict with keys: top, bottom, left, right, angle, spine_col, bleed_method
     """
+    # Tunable parameters with defaults
+    p = params or {}
+    bed_mean_offset = p.get("bed_mean_offset", 20.0024)
+    min_mean_thresh = p.get("min_mean_thresh", 200)
+    p_std_thresh = p.get("std_thresh", 20.6157)
+    p_bleed_inset_in = p.get("bleed_inset_in", 0.0497)
+    p_safety_margin_in = p.get("safety_margin_in", 0.1492)
+    p_strip_check_in = p.get("strip_check_in", 0.667)
+    p_band_size_in = p.get("band_size_in", 2.0)
+
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     h, w = gray.shape
 
@@ -548,8 +566,8 @@ def detect_page_bounds(image, dpi=300):
         gray[h - cs:h, w - cs:w],  # bottom-right
     ]
     bed_mean = max(c.mean() for c in corners)
-    mean_thresh = max(bed_mean - 20, 200)
-    std_thresh = 20
+    mean_thresh = max(bed_mean - bed_mean_offset, min_mean_thresh)
+    std_thresh = p_std_thresh
 
     # --- Pass 1: rough content bounds + skew detection ---
     top, bottom, left, right = _find_content_bounds(gray, mean_thresh, std_thresh)
@@ -589,13 +607,13 @@ def detect_page_bounds(image, dpi=300):
 
     # Strategy 2: DPI-based expected width + boundary detection
     if spine_col is None:
-        bleed_result = detect_bleed_boundary(gray, top, bottom, left, right, dpi)
+        bleed_result = detect_bleed_boundary(gray, top, bottom, left, right, dpi, params)
         if bleed_result is not None:
             cut_col, method = bleed_result
 
             # Small inward shift on the bleed side to remove adjacent-page
             # content that sneaks past the detected gutter/trough boundary.
-            bleed_inset = int(dpi * 0.05)  # 0.05" ≈ 15px@300, 30px@600
+            bleed_inset = int(dpi * p_bleed_inset_in)
 
             mid = (left + right) / 2
             if cut_col > mid:
@@ -608,7 +626,7 @@ def detect_page_bounds(image, dpi=300):
 
     # Strategy 3: Secondary trim — trim opposite edge to expected page width
     expected_page_px = int(dpi * COMIC_PAGE_WIDTH_INCHES)
-    safety_margin = int(dpi * 0.15)
+    safety_margin = int(dpi * p_safety_margin_in)
     trim_target = expected_page_px - safety_margin
     content_width = right - left
     excess = content_width - trim_target
@@ -624,9 +642,9 @@ def detect_page_bounds(image, dpi=300):
 
     # Strategy 5: Edge trim — scan inward from each edge looking for
     # uniform bright strips. Uses a narrow center band to avoid artifacts.
-    max_strip = int(200 * dpi_scale)
+    max_strip = int(dpi * p_strip_check_in)
     strip_check = min(max_strip, (bottom - top) // 20, (right - left) // 20)
-    max_band = int(600 * dpi_scale)
+    max_band = int(dpi * p_band_size_in)
     if strip_check > int(20 * dpi_scale):
         mid_y = (top + bottom) // 2
         band_h = min(max_band, (bottom - top) // 3)

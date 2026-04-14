@@ -1,0 +1,5302 @@
+[
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 0,
+    "filepath": "raw-scans/DS9E18/Scan.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        196,
+        54
+      ],
+      [
+        4116,
+        85
+      ],
+      [
+        4116,
+        6053
+      ],
+      [
+        175,
+        6053
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        0.0,
+        38.0
+      ],
+      [
+        4157.0,
+        38.0
+      ],
+      [
+        4157.0,
+        6073.0
+      ],
+      [
+        0.0,
+        6073.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": false,
+    "det_bleed_method": null,
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 1,
+    "filepath": "raw-scans/DS9E18/Scan 1.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        51,
+        95
+      ],
+      [
+        3962,
+        95
+      ],
+      [
+        3952,
+        6084
+      ],
+      [
+        21,
+        6095
+      ]
+    ],
+    "gt_rotation": -0.9827777246794938,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        181.1,
+        119.9
+      ],
+      [
+        4065.5,
+        53.3
+      ],
+      [
+        4168.8,
+        6078.4
+      ],
+      [
+        284.4,
+        6145.0
+      ]
+    ],
+    "det_rotation": -0.9827777246794938,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 2,
+    "filepath": "raw-scans/DS9E18/Scan 2.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        916,
+        867
+      ],
+      [
+        4816,
+        888
+      ],
+      [
+        4816,
+        6877
+      ],
+      [
+        885,
+        6856
+      ]
+    ],
+    "gt_rotation": 0.9717704552088975,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        1288.1,
+        837.9
+      ],
+      [
+        4887.6,
+        899.0
+      ],
+      [
+        4784.9,
+        6951.1
+      ],
+      [
+        1185.5,
+        6890.0
+      ]
+    ],
+    "det_rotation": 0.9717704552088975,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 3,
+    "filepath": "raw-scans/DS9E18/Scan 3.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        175,
+        181
+      ],
+      [
+        4085,
+        229
+      ],
+      [
+        3993,
+        6208
+      ],
+      [
+        52,
+        6172
+      ]
+    ],
+    "gt_rotation": 0.9599546429433552,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        1023.5,
+        779.2
+      ],
+      [
+        4908.0,
+        844.3
+      ],
+      [
+        4806.7,
+        6888.5
+      ],
+      [
+        922.2,
+        6823.4
+      ]
+    ],
+    "det_rotation": 0.9599546429433552,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 4,
+    "filepath": "raw-scans/DS9E18/Scan 4.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        916,
+        826
+      ],
+      [
+        4816,
+        888
+      ],
+      [
+        4764,
+        6856
+      ],
+      [
+        834,
+        6805
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        870.0,
+        825.0
+      ],
+      [
+        4755.0,
+        825.0
+      ],
+      [
+        4755.0,
+        6867.0
+      ],
+      [
+        870.0,
+        6867.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 5,
+    "filepath": "raw-scans/DS9E18/Scan 5.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        103,
+        116
+      ],
+      [
+        4024,
+        136
+      ],
+      [
+        3972,
+        6105
+      ],
+      [
+        41,
+        6105
+      ]
+    ],
+    "gt_rotation": 0.9765380357615641,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        150.7,
+        42.3
+      ],
+      [
+        3967.2,
+        107.4
+      ],
+      [
+        3864.6,
+        6126.5
+      ],
+      [
+        48.1,
+        6061.4
+      ]
+    ],
+    "det_rotation": 0.9765380357615641,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 6,
+    "filepath": "raw-scans/DS9E18/Scan 6.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        947,
+        867
+      ],
+      [
+        4837,
+        949
+      ],
+      [
+        4723,
+        6928
+      ],
+      [
+        803,
+        6846
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        987.0,
+        841.0
+      ],
+      [
+        4872.0,
+        841.0
+      ],
+      [
+        4872.0,
+        6935.0
+      ],
+      [
+        987.0,
+        6935.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 7,
+    "filepath": "raw-scans/DS9E18/Scan 7.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        72,
+        229
+      ],
+      [
+        4010,
+        201
+      ],
+      [
+        3993,
+        6187
+      ],
+      [
+        82,
+        6208
+      ]
+    ],
+    "gt_rotation": 0.9632349533708435,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        125.9,
+        135.9
+      ],
+      [
+        4010.3,
+        201.3
+      ],
+      [
+        3909.0,
+        6227.4
+      ],
+      [
+        24.5,
+        6162.1
+      ]
+    ],
+    "det_rotation": 0.9632349533708435,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 8,
+    "filepath": "raw-scans/DS9E18/Scan 8.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        988,
+        816
+      ],
+      [
+        4878,
+        857
+      ],
+      [
+        4806,
+        6835
+      ],
+      [
+        895,
+        6774
+      ]
+    ],
+    "gt_rotation": 0.9829193891732615,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        1132.2,
+        833.5
+      ],
+      [
+        4844.6,
+        897.2
+      ],
+      [
+        4741.6,
+        6901.3
+      ],
+      [
+        1029.2,
+        6837.6
+      ]
+    ],
+    "det_rotation": 0.9829193891732615,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 9,
+    "filepath": "raw-scans/DS9E18/Scan 9.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        103,
+        136
+      ],
+      [
+        4024,
+        208
+      ],
+      [
+        3890,
+        6177
+      ],
+      [
+        21,
+        6125
+      ]
+    ],
+    "gt_rotation": 0.9887630030924441,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        231.9,
+        74.7
+      ],
+      [
+        3911.4,
+        138.2
+      ],
+      [
+        3807.2,
+        6174.3
+      ],
+      [
+        127.7,
+        6110.8
+      ]
+    ],
+    "det_rotation": 0.9887630030924441,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 10,
+    "filepath": "raw-scans/DS9E18/Scan 10.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        1050,
+        764
+      ],
+      [
+        4939,
+        888
+      ],
+      [
+        4734,
+        6866
+      ],
+      [
+        834,
+        6733
+      ]
+    ],
+    "gt_rotation": 2.005335511798289,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        932.0,
+        708.6
+      ],
+      [
+        4814.6,
+        844.6
+      ],
+      [
+        4600.8,
+        6951.8
+      ],
+      [
+        718.2,
+        6815.9
+      ]
+    ],
+    "det_rotation": 2.005335511798289,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 11,
+    "filepath": "raw-scans/DS9E18/Scan 11.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        113,
+        157
+      ],
+      [
+        4003,
+        208
+      ],
+      [
+        3931,
+        6187
+      ],
+      [
+        10,
+        6136
+      ]
+    ],
+    "gt_rotation": -2.02295025129441,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        -116.2,
+        260.6
+      ],
+      [
+        3519.5,
+        132.2
+      ],
+      [
+        3733.1,
+        6180.4
+      ],
+      [
+        97.4,
+        6308.9
+      ]
+    ],
+    "det_rotation": -2.02295025129441,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 12,
+    "filepath": "raw-scans/DS9E18/Scan 12.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        998,
+        888
+      ],
+      [
+        4878,
+        929
+      ],
+      [
+        4816,
+        6907
+      ],
+      [
+        895,
+        6856
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        973.0,
+        874.0
+      ],
+      [
+        4858.0,
+        874.0
+      ],
+      [
+        4858.0,
+        6913.0
+      ],
+      [
+        973.0,
+        6913.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": true,
+    "det_bleed_method": "dark_trough+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 13,
+    "filepath": "raw-scans/DS9E18/Scan 13.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        113,
+        95
+      ],
+      [
+        4034,
+        136
+      ],
+      [
+        3952,
+        6125
+      ],
+      [
+        41,
+        6084
+      ]
+    ],
+    "gt_rotation": -1.0406021679437962,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        -30.5,
+        147.0
+      ],
+      [
+        3841.9,
+        76.7
+      ],
+      [
+        3951.6,
+        6113.7
+      ],
+      [
+        79.2,
+        6184.0
+      ]
+    ],
+    "det_rotation": -1.0406021679437962,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 14,
+    "filepath": "raw-scans/DS9E18/Scan 14.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        144,
+        157
+      ],
+      [
+        4075,
+        147
+      ],
+      [
+        4054,
+        6125
+      ],
+      [
+        154,
+        6136
+      ]
+    ],
+    "gt_rotation": 1.0151502558994991,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        245.0,
+        72.9
+      ],
+      [
+        4129.4,
+        141.7
+      ],
+      [
+        4022.4,
+        6181.7
+      ],
+      [
+        138.0,
+        6112.9
+      ]
+    ],
+    "det_rotation": 1.0151502558994991,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 15,
+    "filepath": "raw-scans/DS9E18/Scan 15.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        93,
+        198
+      ],
+      [
+        3972,
+        229
+      ],
+      [
+        3910,
+        6218
+      ],
+      [
+        10,
+        6177
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        47.0,
+        181.0
+      ],
+      [
+        3932.0,
+        181.0
+      ],
+      [
+        3932.0,
+        6215.0
+      ],
+      [
+        47.0,
+        6215.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 16,
+    "filepath": "raw-scans/DS9E18/Scan 16.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        1019,
+        826
+      ],
+      [
+        4898,
+        888
+      ],
+      [
+        4847,
+        6856
+      ],
+      [
+        926,
+        6784
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        1120.0,
+        834.0
+      ],
+      [
+        4896.0,
+        834.0
+      ],
+      [
+        4896.0,
+        6868.0
+      ],
+      [
+        1120.0,
+        6868.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 17,
+    "filepath": "raw-scans/DS9E18/Scan 17.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        123,
+        208
+      ],
+      [
+        4044,
+        270
+      ],
+      [
+        3931,
+        6239
+      ],
+      [
+        41,
+        6208
+      ]
+    ],
+    "gt_rotation": -0.9857996479233453,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        31.3,
+        262.6
+      ],
+      [
+        3915.7,
+        195.8
+      ],
+      [
+        4019.6,
+        6231.9
+      ],
+      [
+        135.2,
+        6298.8
+      ]
+    ],
+    "det_rotation": -0.9857996479233453,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 18,
+    "filepath": "raw-scans/DS9E18/Scan 18.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        1070,
+        743
+      ],
+      [
+        4950,
+        867
+      ],
+      [
+        4775,
+        6825
+      ],
+      [
+        885,
+        6702
+      ]
+    ],
+    "gt_rotation": 1.9749340108819766,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        1095.5,
+        712.6
+      ],
+      [
+        4978.2,
+        846.5
+      ],
+      [
+        4768.2,
+        6937.9
+      ],
+      [
+        885.5,
+        6804.0
+      ]
+    ],
+    "det_rotation": 1.9749340108819766,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 19,
+    "filepath": "raw-scans/DS9E18/Scan 19.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        82,
+        219
+      ],
+      [
+        4034,
+        208
+      ],
+      [
+        3993,
+        6208
+      ],
+      [
+        62,
+        6208
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        19.0,
+        190.0
+      ],
+      [
+        3892.0,
+        190.0
+      ],
+      [
+        3892.0,
+        6231.0
+      ],
+      [
+        19.0,
+        6231.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 20,
+    "filepath": "raw-scans/DS9E18/Scan 20.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        1070,
+        816
+      ],
+      [
+        4929,
+        898
+      ],
+      [
+        4806,
+        6887
+      ],
+      [
+        936,
+        6805
+      ]
+    ],
+    "gt_rotation": -1.9939553996049768,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        950.6,
+        865.6
+      ],
+      [
+        4815.3,
+        731.1
+      ],
+      [
+        5025.1,
+        6756.4
+      ],
+      [
+        1160.4,
+        6891.0
+      ]
+    ],
+    "det_rotation": -1.9939553996049768,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 21,
+    "filepath": "raw-scans/DS9E18/Scan 21.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        175,
+        85
+      ],
+      [
+        4065,
+        188
+      ],
+      [
+        3910,
+        6156
+      ],
+      [
+        0,
+        6064
+      ]
+    ],
+    "gt_rotation": -2.9674734762597623,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        -87.9,
+        253.1
+      ],
+      [
+        3791.8,
+        52.0
+      ],
+      [
+        4105.3,
+        6098.8
+      ],
+      [
+        225.5,
+        6300.0
+      ]
+    ],
+    "det_rotation": -2.9674734762597623,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 22,
+    "filepath": "raw-scans/DS9E18/Scan 22.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        936,
+        918
+      ],
+      [
+        4909,
+        1011
+      ],
+      [
+        4816,
+        6980
+      ],
+      [
+        885,
+        6897
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        1019.0,
+        934.0
+      ],
+      [
+        4893.0,
+        934.0
+      ],
+      [
+        4893.0,
+        6968.0
+      ],
+      [
+        1019.0,
+        6968.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 23,
+    "filepath": "raw-scans/DS9E18/Scan 23.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        113,
+        105
+      ],
+      [
+        4013,
+        105
+      ],
+      [
+        4024,
+        6074
+      ],
+      [
+        103,
+        6095
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        114.0,
+        74.0
+      ],
+      [
+        3999.0,
+        74.0
+      ],
+      [
+        3999.0,
+        6112.0
+      ],
+      [
+        114.0,
+        6112.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 24,
+    "filepath": "raw-scans/DS9E18/Scan 24.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        1050,
+        939
+      ],
+      [
+        4950,
+        1052
+      ],
+      [
+        4826,
+        7010
+      ],
+      [
+        885,
+        6928
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        1094.0,
+        956.0
+      ],
+      [
+        4925.0,
+        956.0
+      ],
+      [
+        4925.0,
+        6997.0
+      ],
+      [
+        1094.0,
+        6997.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 25,
+    "filepath": "raw-scans/DS9E18/Scan 25.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        82,
+        147
+      ],
+      [
+        4013,
+        126
+      ],
+      [
+        4034,
+        6105
+      ],
+      [
+        103,
+        6125
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        120.0,
+        99.0
+      ],
+      [
+        4005.0,
+        99.0
+      ],
+      [
+        4005.0,
+        6140.0
+      ],
+      [
+        120.0,
+        6140.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 26,
+    "filepath": "raw-scans/DS9E18/Scan 26.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        1070,
+        939
+      ],
+      [
+        4960,
+        990
+      ],
+      [
+        4919,
+        6980
+      ],
+      [
+        978,
+        6907
+      ]
+    ],
+    "gt_rotation": 2.009553813021139,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        1181.6,
+        902.4
+      ],
+      [
+        5047.2,
+        1038.0
+      ],
+      [
+        4834.5,
+        7100.3
+      ],
+      [
+        968.9,
+        6964.6
+      ]
+    ],
+    "det_rotation": 2.009553813021139,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 27,
+    "filepath": "raw-scans/DS9E18/Scan 27.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        185,
+        219
+      ],
+      [
+        4126,
+        229
+      ],
+      [
+        4106,
+        6208
+      ],
+      [
+        134,
+        6197
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        123.0,
+        184.0
+      ],
+      [
+        4008.0,
+        184.0
+      ],
+      [
+        4008.0,
+        6224.0
+      ],
+      [
+        123.0,
+        6224.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 28,
+    "filepath": "raw-scans/DS9E18/Scan 28.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        1060,
+        846
+      ],
+      [
+        4929,
+        929
+      ],
+      [
+        4775,
+        6897
+      ],
+      [
+        906,
+        6815
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        1088.0,
+        1077.0
+      ],
+      [
+        4874.0,
+        1077.0
+      ],
+      [
+        4874.0,
+        6897.0
+      ],
+      [
+        1088.0,
+        6897.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 29,
+    "filepath": "raw-scans/DS9E18/Scan 29.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        93,
+        105
+      ],
+      [
+        4003,
+        105
+      ],
+      [
+        4013,
+        6064
+      ],
+      [
+        82,
+        6095
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        62.0,
+        63.0
+      ],
+      [
+        3820.0,
+        63.0
+      ],
+      [
+        3820.0,
+        6106.0
+      ],
+      [
+        62.0,
+        6106.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 30,
+    "filepath": "raw-scans/DS9E18/Scan 30.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        926,
+        888
+      ],
+      [
+        4847,
+        929
+      ],
+      [
+        4806,
+        6897
+      ],
+      [
+        854,
+        6866
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        905.0,
+        881.0
+      ],
+      [
+        4678.0,
+        881.0
+      ],
+      [
+        4678.0,
+        6901.0
+      ],
+      [
+        905.0,
+        6901.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 31,
+    "filepath": "raw-scans/DS9E18/Scan 31.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        144,
+        85
+      ],
+      [
+        4065,
+        95
+      ],
+      [
+        4065,
+        6074
+      ],
+      [
+        123,
+        6074
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        288.0,
+        50.0
+      ],
+      [
+        4054.0,
+        50.0
+      ],
+      [
+        4054.0,
+        6089.0
+      ],
+      [
+        288.0,
+        6089.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 32,
+    "filepath": "raw-scans/DS9E18/Scan 32.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        854,
+        970
+      ],
+      [
+        4775,
+        918
+      ],
+      [
+        4857,
+        6907
+      ],
+      [
+        926,
+        6959
+      ]
+    ],
+    "gt_rotation": 1.5077789636211492,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        997.1,
+        900.1
+      ],
+      [
+        4880.8,
+        1002.3
+      ],
+      [
+        4722.3,
+        7023.2
+      ],
+      [
+        838.6,
+        6921.0
+      ]
+    ],
+    "det_rotation": 1.5077789636211492,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 33,
+    "filepath": "raw-scans/DS9E18/Scan 33.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        158,
+        197
+      ],
+      [
+        4065,
+        136
+      ],
+      [
+        4147,
+        6105
+      ],
+      [
+        216,
+        6177
+      ]
+    ],
+    "gt_rotation": -1.9648510369912537,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        157.6,
+        197.2
+      ],
+      [
+        4040.3,
+        64.0
+      ],
+      [
+        4248.8,
+        6141.4
+      ],
+      [
+        366.1,
+        6274.6
+      ]
+    ],
+    "det_rotation": -1.9648510369912537,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 34,
+    "filepath": "raw-scans/DS9E18/Scan 34.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        936,
+        949
+      ],
+      [
+        4847,
+        970
+      ],
+      [
+        4826,
+        6949
+      ],
+      [
+        895,
+        6918
+      ]
+    ],
+    "gt_rotation": -1.001034065454263,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        1174.6,
+        948.9
+      ],
+      [
+        4819.0,
+        885.2
+      ],
+      [
+        4924.1,
+        6898.3
+      ],
+      [
+        1279.7,
+        6962.0
+      ]
+    ],
+    "det_rotation": -1.001034065454263,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E18",
+    "page_index": 35,
+    "filepath": "raw-scans/DS9E18/Scan 35.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        103,
+        116
+      ],
+      [
+        4013,
+        105
+      ],
+      [
+        4013,
+        6074
+      ],
+      [
+        82,
+        6074
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        0.0,
+        67.0
+      ],
+      [
+        4072.0,
+        67.0
+      ],
+      [
+        4072.0,
+        6101.0
+      ],
+      [
+        0.0,
+        6101.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": false,
+    "det_bleed_method": null,
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E19",
+    "page_index": 0,
+    "filepath": "raw-scans/DS9E19/Scan.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        129,
+        178
+      ],
+      [
+        4060,
+        136
+      ],
+      [
+        4111,
+        6125
+      ],
+      [
+        170,
+        6167
+      ]
+    ],
+    "gt_rotation": 0.9987970715981334,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        190.0,
+        74.1
+      ],
+      [
+        4193.4,
+        143.9
+      ],
+      [
+        4088.0,
+        6186.9
+      ],
+      [
+        84.7,
+        6117.1
+      ]
+    ],
+    "det_rotation": 0.9987970715981334,
+    "det_rotate180": false,
+    "det_bleed_method": null,
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E19",
+    "page_index": 1,
+    "filepath": "raw-scans/DS9E19/Scan 1.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        67,
+        157
+      ],
+      [
+        3977,
+        147
+      ],
+      [
+        3998,
+        6136
+      ],
+      [
+        57,
+        6156
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        326.0,
+        141.0
+      ],
+      [
+        4211.0,
+        141.0
+      ],
+      [
+        4211.0,
+        6159.0
+      ],
+      [
+        326.0,
+        6159.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E19",
+    "page_index": 2,
+    "filepath": "raw-scans/DS9E19/Scan 2.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        921,
+        877
+      ],
+      [
+        4842,
+        898
+      ],
+      [
+        4780,
+        6897
+      ],
+      [
+        839,
+        6877
+      ]
+    ],
+    "gt_rotation": -1.969843616766795,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        1117.0,
+        885.3
+      ],
+      [
+        4764.9,
+        759.8
+      ],
+      [
+        4973.2,
+        6816.3
+      ],
+      [
+        1325.3,
+        6941.7
+      ]
+    ],
+    "det_rotation": -1.969843616766795,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E19",
+    "page_index": 3,
+    "filepath": "raw-scans/DS9E19/Scan 3.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        87,
+        150
+      ],
+      [
+        4008,
+        188
+      ],
+      [
+        3967,
+        6180
+      ],
+      [
+        26,
+        6167
+      ]
+    ],
+    "gt_rotation": 0.9782397999706944,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        1003.4,
+        804.9
+      ],
+      [
+        4887.9,
+        871.2
+      ],
+      [
+        4784.6,
+        6917.3
+      ],
+      [
+        900.2,
+        6851.0
+      ]
+    ],
+    "det_rotation": 0.9782397999706944,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E19",
+    "page_index": 4,
+    "filepath": "raw-scans/DS9E19/Scan 4.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        952,
+        908
+      ],
+      [
+        4893,
+        918
+      ],
+      [
+        4873,
+        6907
+      ],
+      [
+        931,
+        6887
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        1114.0,
+        894.0
+      ],
+      [
+        4960.0,
+        894.0
+      ],
+      [
+        4960.0,
+        6926.0
+      ],
+      [
+        1114.0,
+        6926.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E19",
+    "page_index": 5,
+    "filepath": "raw-scans/DS9E19/Scan 5.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        139,
+        178
+      ],
+      [
+        4060,
+        167
+      ],
+      [
+        4060,
+        6167
+      ],
+      [
+        118,
+        6167
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        161.0,
+        152.0
+      ],
+      [
+        4046.0,
+        152.0
+      ],
+      [
+        4046.0,
+        6173.0
+      ],
+      [
+        161.0,
+        6173.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E19",
+    "page_index": 6,
+    "filepath": "raw-scans/DS9E19/Scan 6.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        911,
+        939
+      ],
+      [
+        4842,
+        960
+      ],
+      [
+        4800,
+        6959
+      ],
+      [
+        859,
+        6928
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        1073.0,
+        932.0
+      ],
+      [
+        4849.0,
+        932.0
+      ],
+      [
+        4849.0,
+        6966.0
+      ],
+      [
+        1073.0,
+        6966.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E19",
+    "page_index": 7,
+    "filepath": "raw-scans/DS9E19/Scan 7.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        26,
+        188
+      ],
+      [
+        3957,
+        229
+      ],
+      [
+        3905,
+        6197
+      ],
+      [
+        5,
+        6177
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        0.0,
+        180.0
+      ],
+      [
+        3884.0,
+        180.0
+      ],
+      [
+        3884.0,
+        6207.0
+      ],
+      [
+        0.0,
+        6207.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E19",
+    "page_index": 8,
+    "filepath": "raw-scans/DS9E19/Scan 8.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        921,
+        929
+      ],
+      [
+        4844,
+        915
+      ],
+      [
+        4844,
+        6928
+      ],
+      [
+        959,
+        6928
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        959.0,
+        915.0
+      ],
+      [
+        4844.0,
+        915.0
+      ],
+      [
+        4844.0,
+        6928.0
+      ],
+      [
+        959.0,
+        6928.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E19",
+    "page_index": 9,
+    "filepath": "raw-scans/DS9E19/Scan 9.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        262,
+        178
+      ],
+      [
+        4193,
+        219
+      ],
+      [
+        4111,
+        6218
+      ],
+      [
+        180,
+        6167
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        278.0,
+        179.0
+      ],
+      [
+        4163.0,
+        179.0
+      ],
+      [
+        4163.0,
+        6212.0
+      ],
+      [
+        278.0,
+        6212.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E19",
+    "page_index": 10,
+    "filepath": "raw-scans/DS9E19/Scan 10.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        931,
+        692
+      ],
+      [
+        4831,
+        743
+      ],
+      [
+        4749,
+        6733
+      ],
+      [
+        818,
+        6681
+      ]
+    ],
+    "gt_rotation": 1.9718918109496266,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        1414.3,
+        661.6
+      ],
+      [
+        4936.2,
+        782.9
+      ],
+      [
+        4727.0,
+        6860.3
+      ],
+      [
+        1205.1,
+        6739.0
+      ]
+    ],
+    "det_rotation": 1.9718918109496266,
+    "det_rotate180": true,
+    "det_bleed_method": "gradient",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E19",
+    "page_index": 11,
+    "filepath": "raw-scans/DS9E19/Scan 11.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        221,
+        250
+      ],
+      [
+        4142,
+        280
+      ],
+      [
+        4060,
+        6269
+      ],
+      [
+        129,
+        6228
+      ]
+    ],
+    "gt_rotation": 0.9718453710916576,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        187.2,
+        177.1
+      ],
+      [
+        3977.6,
+        241.4
+      ],
+      [
+        3875.0,
+        6292.6
+      ],
+      [
+        84.5,
+        6228.3
+      ]
+    ],
+    "det_rotation": 0.9718453710916576,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E19",
+    "page_index": 12,
+    "filepath": "raw-scans/DS9E19/Scan 12.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        129,
+        157
+      ],
+      [
+        4060,
+        126
+      ],
+      [
+        4090,
+        6115
+      ],
+      [
+        180,
+        6156
+      ]
+    ],
+    "gt_rotation": -2.985112842265451,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        52.6,
+        223.0
+      ],
+      [
+        3932.4,
+        20.6
+      ],
+      [
+        4249.9,
+        6110.4
+      ],
+      [
+        370.2,
+        6312.7
+      ]
+    ],
+    "det_rotation": -2.985112842265451,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E19",
+    "page_index": 13,
+    "filepath": "raw-scans/DS9E19/Scan 13.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        252,
+        136
+      ],
+      [
+        4162,
+        208
+      ],
+      [
+        4080,
+        6187
+      ],
+      [
+        160,
+        6136
+      ]
+    ],
+    "gt_rotation": 2.978767926472841,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        370.5,
+        -30.4
+      ],
+      [
+        4250.3,
+        171.5
+      ],
+      [
+        3933.5,
+        6258.3
+      ],
+      [
+        53.8,
+        6056.4
+      ]
+    ],
+    "det_rotation": 2.978767926472841,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E19",
+    "page_index": 14,
+    "filepath": "raw-scans/DS9E19/Scan 14.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        781,
+        769
+      ],
+      [
+        4698,
+        785
+      ],
+      [
+        4687,
+        6763
+      ],
+      [
+        781,
+        6795
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        781.0,
+        769.0
+      ],
+      [
+        4666.0,
+        769.0
+      ],
+      [
+        4666.0,
+        6795.0
+      ],
+      [
+        781.0,
+        6795.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E19",
+    "page_index": 15,
+    "filepath": "raw-scans/DS9E19/Scan 15.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        98,
+        322
+      ],
+      [
+        4029,
+        301
+      ],
+      [
+        4049,
+        6269
+      ],
+      [
+        160,
+        6311
+      ]
+    ],
+    "gt_rotation": 1.0032811011134914,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        178.3,
+        215.7
+      ],
+      [
+        4062.7,
+        283.7
+      ],
+      [
+        3957.1,
+        6311.8
+      ],
+      [
+        72.7,
+        6243.8
+      ]
+    ],
+    "det_rotation": 1.0032811011134914,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E19",
+    "page_index": 16,
+    "filepath": "raw-scans/DS9E19/Scan 16.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        880,
+        857
+      ],
+      [
+        4780,
+        857
+      ],
+      [
+        4739,
+        6835
+      ],
+      [
+        849,
+        6815
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        874.0,
+        1004.0
+      ],
+      [
+        4759.0,
+        1004.0
+      ],
+      [
+        4759.0,
+        6864.0
+      ],
+      [
+        874.0,
+        6864.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E19",
+    "page_index": 17,
+    "filepath": "raw-scans/DS9E19/Scan 17.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        118,
+        208
+      ],
+      [
+        3998,
+        198
+      ],
+      [
+        4018,
+        6177
+      ],
+      [
+        108,
+        6187
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        107.0,
+        167.0
+      ],
+      [
+        3992.0,
+        167.0
+      ],
+      [
+        3992.0,
+        6190.0
+      ],
+      [
+        107.0,
+        6190.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E19",
+    "page_index": 18,
+    "filepath": "raw-scans/DS9E19/Scan 18.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        828,
+        877
+      ],
+      [
+        4728,
+        857
+      ],
+      [
+        4739,
+        6856
+      ],
+      [
+        839,
+        6856
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        875.0,
+        853.0
+      ],
+      [
+        4760.0,
+        853.0
+      ],
+      [
+        4760.0,
+        6880.0
+      ],
+      [
+        875.0,
+        6880.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E19",
+    "page_index": 19,
+    "filepath": "raw-scans/DS9E19/Scan 19.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        201,
+        229
+      ],
+      [
+        4125,
+        235
+      ],
+      [
+        4101,
+        6239
+      ],
+      [
+        221,
+        6239
+      ]
+    ],
+    "gt_rotation": 2.006455180596326,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        252.0,
+        99.4
+      ],
+      [
+        4124.6,
+        235.1
+      ],
+      [
+        3920.4,
+        6063.5
+      ],
+      [
+        47.8,
+        5927.8
+      ]
+    ],
+    "det_rotation": 2.006455180596326,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E19",
+    "page_index": 20,
+    "filepath": "raw-scans/DS9E19/Scan 20.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        870,
+        836
+      ],
+      [
+        4759,
+        723
+      ],
+      [
+        4903,
+        6712
+      ],
+      [
+        1024,
+        6815
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        949.0,
+        819.0
+      ],
+      [
+        4834.0,
+        819.0
+      ],
+      [
+        4834.0,
+        7016.0
+      ],
+      [
+        949.0,
+        7016.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E19",
+    "page_index": 21,
+    "filepath": "raw-scans/DS9E19/Scan 21.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        211,
+        95
+      ],
+      [
+        4111,
+        147
+      ],
+      [
+        4018,
+        6125
+      ],
+      [
+        129,
+        6074
+      ]
+    ],
+    "gt_rotation": 1.0070486599827433,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        181.9,
+        25.1
+      ],
+      [
+        4052.3,
+        93.1
+      ],
+      [
+        3944.7,
+        6213.2
+      ],
+      [
+        74.3,
+        6145.1
+      ]
+    ],
+    "det_rotation": 1.0070486599827433,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E19",
+    "page_index": 22,
+    "filepath": "raw-scans/DS9E19/Scan 22.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        890,
+        651
+      ],
+      [
+        4800,
+        651
+      ],
+      [
+        4800,
+        6650
+      ],
+      [
+        890,
+        6640
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        906.0,
+        634.0
+      ],
+      [
+        4791.0,
+        634.0
+      ],
+      [
+        4791.0,
+        6657.0
+      ],
+      [
+        906.0,
+        6657.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E19",
+    "page_index": 23,
+    "filepath": "raw-scans/DS9E19/Scan 23.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        139,
+        157
+      ],
+      [
+        4060,
+        136
+      ],
+      [
+        4080,
+        6136
+      ],
+      [
+        170,
+        6167
+      ]
+    ],
+    "gt_rotation": -1.9881392261736295,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        39.1,
+        209.2
+      ],
+      [
+        3921.7,
+        74.4
+      ],
+      [
+        4132.4,
+        6143.8
+      ],
+      [
+        249.8,
+        6278.5
+      ]
+    ],
+    "det_rotation": -1.9881392261736295,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E19",
+    "page_index": 24,
+    "filepath": "raw-scans/DS9E19/Scan 24.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        900,
+        877
+      ],
+      [
+        4831,
+        857
+      ],
+      [
+        4862,
+        6846
+      ],
+      [
+        942,
+        6856
+      ]
+    ],
+    "gt_rotation": -1.9720477374344725,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        1068.2,
+        923.1
+      ],
+      [
+        4817.0,
+        794.0
+      ],
+      [
+        5023.1,
+        6780.4
+      ],
+      [
+        1274.3,
+        6909.5
+      ]
+    ],
+    "det_rotation": -1.9720477374344725,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E19",
+    "page_index": 25,
+    "filepath": "raw-scans/DS9E19/Scan 25.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        334,
+        167
+      ],
+      [
+        4235,
+        116
+      ],
+      [
+        4296,
+        6125
+      ],
+      [
+        348,
+        6155
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        348.0,
+        121.0
+      ],
+      [
+        4233.0,
+        121.0
+      ],
+      [
+        4233.0,
+        6155.0
+      ],
+      [
+        348.0,
+        6155.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E19",
+    "page_index": 26,
+    "filepath": "raw-scans/DS9E19/Scan 26.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        818,
+        743
+      ],
+      [
+        4698,
+        754
+      ],
+      [
+        4698,
+        6733
+      ],
+      [
+        798,
+        6743
+      ]
+    ],
+    "gt_rotation": 0.9964724180579072,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        981.1,
+        703.0
+      ],
+      [
+        4773.5,
+        769.0
+      ],
+      [
+        4664.8,
+        7017.0
+      ],
+      [
+        872.4,
+        6951.1
+      ]
+    ],
+    "det_rotation": 0.9964724180579072,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E19",
+    "page_index": 27,
+    "filepath": "raw-scans/DS9E19/Scan 27.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        232,
+        219
+      ],
+      [
+        4090,
+        219
+      ],
+      [
+        4101,
+        6197
+      ],
+      [
+        211,
+        6208
+      ]
+    ],
+    "gt_rotation": -1.0128098902859932,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        65.2,
+        229.2
+      ],
+      [
+        3903.6,
+        161.3
+      ],
+      [
+        4010.8,
+        6226.4
+      ],
+      [
+        172.4,
+        6294.2
+      ]
+    ],
+    "det_rotation": -1.0128098902859932,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E19",
+    "page_index": 28,
+    "filepath": "raw-scans/DS9E19/Scan 28.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        900,
+        846
+      ],
+      [
+        4780,
+        805
+      ],
+      [
+        4821,
+        6784
+      ],
+      [
+        911,
+        6815
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        900.0,
+        801.0
+      ],
+      [
+        4785.0,
+        801.0
+      ],
+      [
+        4785.0,
+        7016.0
+      ],
+      [
+        900.0,
+        7016.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E19",
+    "page_index": 29,
+    "filepath": "raw-scans/DS9E19/Scan 29.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        334,
+        342
+      ],
+      [
+        4255,
+        301
+      ],
+      [
+        4307,
+        6269
+      ],
+      [
+        386,
+        6311
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        400.0,
+        276.0
+      ],
+      [
+        4285.0,
+        276.0
+      ],
+      [
+        4285.0,
+        6311.0
+      ],
+      [
+        400.0,
+        6311.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E19",
+    "page_index": 30,
+    "filepath": "raw-scans/DS9E19/Scan 30.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        859,
+        795
+      ],
+      [
+        4770,
+        846
+      ],
+      [
+        4667,
+        6825
+      ],
+      [
+        736,
+        6763
+      ]
+    ],
+    "gt_rotation": 0.9741170483632585,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        915.5,
+        761.5
+      ],
+      [
+        4791.9,
+        827.4
+      ],
+      [
+        4689.0,
+        6880.5
+      ],
+      [
+        812.5,
+        6814.6
+      ]
+    ],
+    "det_rotation": 0.9741170483632585,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E19",
+    "page_index": 31,
+    "filepath": "raw-scans/DS9E19/Scan 31.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        211,
+        342
+      ],
+      [
+        4121,
+        291
+      ],
+      [
+        4214,
+        6269
+      ],
+      [
+        283,
+        6331
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        219.0,
+        284.0
+      ],
+      [
+        4031.0,
+        284.0
+      ],
+      [
+        4031.0,
+        6326.0
+      ],
+      [
+        219.0,
+        6326.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E19",
+    "page_index": 32,
+    "filepath": "raw-scans/DS9E19/Scan 32.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        828,
+        857
+      ],
+      [
+        4759,
+        846
+      ],
+      [
+        4780,
+        6825
+      ],
+      [
+        859,
+        6848
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        859.0,
+        831.0
+      ],
+      [
+        4744.0,
+        831.0
+      ],
+      [
+        4744.0,
+        6848.0
+      ],
+      [
+        859.0,
+        6848.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E19",
+    "page_index": 33,
+    "filepath": "raw-scans/DS9E19/Scan 33.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        170,
+        116
+      ],
+      [
+        4080,
+        95
+      ],
+      [
+        4132,
+        6074
+      ],
+      [
+        201,
+        6095
+      ]
+    ],
+    "gt_rotation": 1.9560719489970282,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        277.3,
+        -25.7
+      ],
+      [
+        4303.0,
+        111.7
+      ],
+      [
+        4096.2,
+        6165.2
+      ],
+      [
+        70.6,
+        6027.7
+      ]
+    ],
+    "det_rotation": 1.9560719489970282,
+    "det_rotate180": false,
+    "det_bleed_method": null,
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 0,
+    "filepath": "raw-scans/DS9E20/Scan.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        118,
+        116
+      ],
+      [
+        4049,
+        157
+      ],
+      [
+        4008,
+        6156
+      ],
+      [
+        77,
+        6136
+      ]
+    ],
+    "gt_rotation": 1.0043813207926933,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        75.3,
+        46.8
+      ],
+      [
+        4138.7,
+        118.1
+      ],
+      [
+        4032.2,
+        6190.1
+      ],
+      [
+        -31.2,
+        6118.9
+      ]
+    ],
+    "det_rotation": 1.0043813207926933,
+    "det_rotate180": false,
+    "det_bleed_method": null,
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 1,
+    "filepath": "raw-scans/DS9E20/Scan 1.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        180,
+        280
+      ],
+      [
+        4090,
+        280
+      ],
+      [
+        4063,
+        6294
+      ],
+      [
+        139,
+        6269
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        178.0,
+        267.0
+      ],
+      [
+        4063.0,
+        267.0
+      ],
+      [
+        4063.0,
+        6294.0
+      ],
+      [
+        178.0,
+        6294.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 2,
+    "filepath": "raw-scans/DS9E20/Scan 2.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        736,
+        764
+      ],
+      [
+        4667,
+        774
+      ],
+      [
+        4656,
+        6784
+      ],
+      [
+        725,
+        6763
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        1327.0,
+        755.0
+      ],
+      [
+        4960.0,
+        755.0
+      ],
+      [
+        4960.0,
+        7016.0
+      ],
+      [
+        1327.0,
+        7016.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": true,
+    "det_bleed_method": "gradient",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 3,
+    "filepath": "raw-scans/DS9E20/Scan 3.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        139,
+        352
+      ],
+      [
+        4049,
+        322
+      ],
+      [
+        4101,
+        6300
+      ],
+      [
+        190,
+        6362
+      ]
+    ],
+    "gt_rotation": -0.9970909199926439,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        262.1,
+        342.6
+      ],
+      [
+        4146.5,
+        275.0
+      ],
+      [
+        4252.0,
+        6336.1
+      ],
+      [
+        367.6,
+        6403.7
+      ]
+    ],
+    "det_rotation": -0.9970909199926439,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 4,
+    "filepath": "raw-scans/DS9E20/Scan 4.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        818,
+        857
+      ],
+      [
+        4749,
+        805
+      ],
+      [
+        4811,
+        6815
+      ],
+      [
+        890,
+        6866
+      ]
+    ],
+    "gt_rotation": -0.9751531430925553,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        1090.0,
+        818.8
+      ],
+      [
+        4779.5,
+        756.0
+      ],
+      [
+        4882.8,
+        6823.1
+      ],
+      [
+        1193.3,
+        6885.9
+      ]
+    ],
+    "det_rotation": -0.9751531430925553,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 5,
+    "filepath": "raw-scans/DS9E20/Scan 5.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        201,
+        208
+      ],
+      [
+        4132,
+        239
+      ],
+      [
+        4060,
+        6218
+      ],
+      [
+        139,
+        6218
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        145.0,
+        199.0
+      ],
+      [
+        3971.0,
+        199.0
+      ],
+      [
+        3971.0,
+        6228.0
+      ],
+      [
+        145.0,
+        6228.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 6,
+    "filepath": "raw-scans/DS9E20/Scan 6.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        880,
+        939
+      ],
+      [
+        4790,
+        908
+      ],
+      [
+        4842,
+        6928
+      ],
+      [
+        900,
+        6928
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        895.0,
+        905.0
+      ],
+      [
+        4780.0,
+        905.0
+      ],
+      [
+        4780.0,
+        6955.0
+      ],
+      [
+        895.0,
+        6955.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 7,
+    "filepath": "raw-scans/DS9E20/Scan 7.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        118,
+        208
+      ],
+      [
+        4049,
+        208
+      ],
+      [
+        3998,
+        6228
+      ],
+      [
+        67,
+        6228
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        70.0,
+        200.0
+      ],
+      [
+        3805.0,
+        200.0
+      ],
+      [
+        3805.0,
+        6229.0
+      ],
+      [
+        70.0,
+        6229.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 8,
+    "filepath": "raw-scans/DS9E20/Scan 8.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        880,
+        877
+      ],
+      [
+        4811,
+        857
+      ],
+      [
+        4811,
+        6866
+      ],
+      [
+        900,
+        6866
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        784.0,
+        842.0
+      ],
+      [
+        4669.0,
+        842.0
+      ],
+      [
+        4669.0,
+        6892.0
+      ],
+      [
+        784.0,
+        6892.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 9,
+    "filepath": "raw-scans/DS9E20/Scan 9.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        252,
+        229
+      ],
+      [
+        4111,
+        178
+      ],
+      [
+        4162,
+        6177
+      ],
+      [
+        252,
+        6228
+      ]
+    ],
+    "gt_rotation": -0.9749091578796124,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        229.6,
+        210.3
+      ],
+      [
+        4114.0,
+        144.2
+      ],
+      [
+        4216.9,
+        6190.3
+      ],
+      [
+        332.5,
+        6256.4
+      ]
+    ],
+    "det_rotation": -0.9749091578796124,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 10,
+    "filepath": "raw-scans/DS9E20/Scan 10.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        798,
+        816
+      ],
+      [
+        4718,
+        816
+      ],
+      [
+        4728,
+        6815
+      ],
+      [
+        808,
+        6815
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        1092.0,
+        794.0
+      ],
+      [
+        4756.0,
+        794.0
+      ],
+      [
+        4756.0,
+        6838.0
+      ],
+      [
+        1092.0,
+        6838.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 11,
+    "filepath": "raw-scans/DS9E20/Scan 11.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        190,
+        270
+      ],
+      [
+        4111,
+        280
+      ],
+      [
+        4071,
+        6281
+      ],
+      [
+        149,
+        6259
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        186.0,
+        251.0
+      ],
+      [
+        4071.0,
+        251.0
+      ],
+      [
+        4071.0,
+        6281.0
+      ],
+      [
+        186.0,
+        6281.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 12,
+    "filepath": "raw-scans/DS9E20/Scan 12.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        798,
+        795
+      ],
+      [
+        4728,
+        857
+      ],
+      [
+        4646,
+        6856
+      ],
+      [
+        725,
+        6794
+      ]
+    ],
+    "gt_rotation": 2.9579415290594255,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        1244.3,
+        727.5
+      ],
+      [
+        4869.5,
+        914.9
+      ],
+      [
+        4553.3,
+        7033.7
+      ],
+      [
+        928.2,
+        6846.4
+      ]
+    ],
+    "det_rotation": 2.9579415290594255,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 13,
+    "filepath": "raw-scans/DS9E20/Scan 13.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        304,
+        394
+      ],
+      [
+        4214,
+        424
+      ],
+      [
+        4152,
+        6424
+      ],
+      [
+        232,
+        6403
+      ]
+    ],
+    "gt_rotation": -0.9804367434452246,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        225.5,
+        427.6
+      ],
+      [
+        4109.9,
+        361.2
+      ],
+      [
+        4213.2,
+        6400.3
+      ],
+      [
+        328.8,
+        6466.7
+      ]
+    ],
+    "det_rotation": -0.9804367434452246,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 14,
+    "filepath": "raw-scans/DS9E20/Scan 14.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        828,
+        785
+      ],
+      [
+        4749,
+        785
+      ],
+      [
+        4759,
+        6794
+      ],
+      [
+        839,
+        6794
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        1144.0,
+        772.0
+      ],
+      [
+        4786.0,
+        772.0
+      ],
+      [
+        4786.0,
+        7016.0
+      ],
+      [
+        1144.0,
+        7016.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 15,
+    "filepath": "raw-scans/DS9E20/Scan 15.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        211,
+        301
+      ],
+      [
+        4121,
+        311
+      ],
+      [
+        4080,
+        6311
+      ],
+      [
+        170,
+        6311
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        195.0,
+        285.0
+      ],
+      [
+        4080.0,
+        285.0
+      ],
+      [
+        4080.0,
+        6321.0
+      ],
+      [
+        195.0,
+        6321.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": false,
+    "det_bleed_method": "expected_width+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 16,
+    "filepath": "raw-scans/DS9E20/Scan 16.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        921,
+        795
+      ],
+      [
+        4790,
+        836
+      ],
+      [
+        4759,
+        6825
+      ],
+      [
+        859,
+        6794
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        864.0,
+        794.0
+      ],
+      [
+        4803.0,
+        794.0
+      ],
+      [
+        4803.0,
+        6823.0
+      ],
+      [
+        864.0,
+        6823.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": true,
+    "det_bleed_method": null,
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 17,
+    "filepath": "raw-scans/DS9E20/Scan 17.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        314,
+        250
+      ],
+      [
+        4224,
+        260
+      ],
+      [
+        4192,
+        6261
+      ],
+      [
+        283,
+        6259
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        307.0,
+        240.0
+      ],
+      [
+        4192.0,
+        240.0
+      ],
+      [
+        4192.0,
+        6261.0
+      ],
+      [
+        307.0,
+        6261.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 18,
+    "filepath": "raw-scans/DS9E20/Scan 18.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        921,
+        671
+      ],
+      [
+        4821,
+        733
+      ],
+      [
+        4718,
+        6733
+      ],
+      [
+        839,
+        6681
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        1021.0,
+        688.0
+      ],
+      [
+        4795.0,
+        688.0
+      ],
+      [
+        4795.0,
+        6726.0
+      ],
+      [
+        1021.0,
+        6726.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 19,
+    "filepath": "raw-scans/DS9E20/Scan 19.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        160,
+        229
+      ],
+      [
+        4039,
+        167
+      ],
+      [
+        4132,
+        6167
+      ],
+      [
+        211,
+        6228
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        164.0,
+        175.0
+      ],
+      [
+        4107.0,
+        175.0
+      ],
+      [
+        4107.0,
+        6213.0
+      ],
+      [
+        164.0,
+        6213.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": false,
+    "det_bleed_method": null,
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 20,
+    "filepath": "raw-scans/DS9E20/Scan 20.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        952,
+        826
+      ],
+      [
+        4852,
+        826
+      ],
+      [
+        4883,
+        6805
+      ],
+      [
+        962,
+        6825
+      ]
+    ],
+    "gt_rotation": -0.9931896340438158,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        1139.9,
+        859.8
+      ],
+      [
+        4860.3,
+        795.3
+      ],
+      [
+        4964.4,
+        6796.4
+      ],
+      [
+        1243.9,
+        6860.9
+      ]
+    ],
+    "det_rotation": -0.9931896340438158,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 21,
+    "filepath": "raw-scans/DS9E20/Scan 21.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        180,
+        126
+      ],
+      [
+        4121,
+        167
+      ],
+      [
+        4049,
+        6177
+      ],
+      [
+        108,
+        6146
+      ]
+    ],
+    "gt_rotation": 0.9853651734391611,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        124.6,
+        50.0
+      ],
+      [
+        3929.1,
+        115.4
+      ],
+      [
+        3824.4,
+        6198.5
+      ],
+      [
+        20.0,
+        6133.1
+      ]
+    ],
+    "det_rotation": 0.9853651734391611,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 22,
+    "filepath": "raw-scans/DS9E20/Scan 22.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        938,
+        809
+      ],
+      [
+        4823,
+        809
+      ],
+      [
+        4823,
+        6840
+      ],
+      [
+        938,
+        6840
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        938.0,
+        809.0
+      ],
+      [
+        4823.0,
+        809.0
+      ],
+      [
+        4823.0,
+        6840.0
+      ],
+      [
+        938.0,
+        6840.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": false
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 23,
+    "filepath": "raw-scans/DS9E20/Scan 23.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        273,
+        178
+      ],
+      [
+        4173,
+        167
+      ],
+      [
+        4181,
+        6188
+      ],
+      [
+        283,
+        6187
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        296.0,
+        146.0
+      ],
+      [
+        4181.0,
+        146.0
+      ],
+      [
+        4181.0,
+        6188.0
+      ],
+      [
+        296.0,
+        6188.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 24,
+    "filepath": "raw-scans/DS9E20/Scan 24.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        798,
+        816
+      ],
+      [
+        4728,
+        774
+      ],
+      [
+        4790,
+        6774
+      ],
+      [
+        870,
+        6825
+      ]
+    ],
+    "gt_rotation": -0.9479305354448908,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        893.4,
+        858.4
+      ],
+      [
+        4760.9,
+        794.4
+      ],
+      [
+        4859.9,
+        6779.6
+      ],
+      [
+        992.5,
+        6843.6
+      ]
+    ],
+    "det_rotation": -0.9479305354448908,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 25,
+    "filepath": "raw-scans/DS9E20/Scan 25.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        170,
+        147
+      ],
+      [
+        4090,
+        167
+      ],
+      [
+        4039,
+        6177
+      ],
+      [
+        108,
+        6167
+      ]
+    ],
+    "gt_rotation": 1.006094414200419,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        284.9,
+        77.9
+      ],
+      [
+        4166.3,
+        146.1
+      ],
+      [
+        4059.7,
+        6214.2
+      ],
+      [
+        178.3,
+        6146.0
+      ]
+    ],
+    "det_rotation": 1.006094414200419,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 26,
+    "filepath": "raw-scans/DS9E20/Scan 26.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        859,
+        929
+      ],
+      [
+        4770,
+        918
+      ],
+      [
+        4811,
+        6938
+      ],
+      [
+        880,
+        6938
+      ]
+    ],
+    "gt_rotation": -1.0187861466808101,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        1002.4,
+        982.4
+      ],
+      [
+        4789.8,
+        915.0
+      ],
+      [
+        4896.3,
+        6908.1
+      ],
+      [
+        1108.9,
+        6975.4
+      ]
+    ],
+    "det_rotation": -1.0187861466808101,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 27,
+    "filepath": "raw-scans/DS9E20/Scan 27.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        232,
+        167
+      ],
+      [
+        4132,
+        208
+      ],
+      [
+        4049,
+        6197
+      ],
+      [
+        139,
+        6156
+      ]
+    ],
+    "gt_rotation": 0.9837702344556618,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        168.1,
+        74.8
+      ],
+      [
+        3715.6,
+        135.7
+      ],
+      [
+        3611.2,
+        6211.8
+      ],
+      [
+        63.8,
+        6150.9
+      ]
+    ],
+    "det_rotation": 0.9837702344556618,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 28,
+    "filepath": "raw-scans/DS9E20/Scan 28.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        581,
+        579
+      ],
+      [
+        4492,
+        527
+      ],
+      [
+        4584,
+        6537
+      ],
+      [
+        653,
+        6578
+      ]
+    ],
+    "gt_rotation": -1.000074128122705,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        404.8,
+        564.3
+      ],
+      [
+        4289.2,
+        496.5
+      ],
+      [
+        4394.9,
+        6549.5
+      ],
+      [
+        510.5,
+        6617.3
+      ]
+    ],
+    "det_rotation": -1.000074128122705,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 29,
+    "filepath": "raw-scans/DS9E20/Scan 29.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        180,
+        260
+      ],
+      [
+        4090,
+        229
+      ],
+      [
+        4142,
+        6239
+      ],
+      [
+        211,
+        6290
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        227.0,
+        222.0
+      ],
+      [
+        4112.0,
+        222.0
+      ],
+      [
+        4112.0,
+        6318.0
+      ],
+      [
+        227.0,
+        6318.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 30,
+    "filepath": "raw-scans/DS9E20/Scan 30.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        818,
+        682
+      ],
+      [
+        4770,
+        682
+      ],
+      [
+        4800,
+        6671
+      ],
+      [
+        870,
+        6681
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        991.0,
+        671.0
+      ],
+      [
+        4795.0,
+        671.0
+      ],
+      [
+        4795.0,
+        6696.0
+      ],
+      [
+        991.0,
+        6696.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 31,
+    "filepath": "raw-scans/DS9E20/Scan 31.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        242,
+        280
+      ],
+      [
+        4162,
+        198
+      ],
+      [
+        4276,
+        6197
+      ],
+      [
+        345,
+        6300
+      ]
+    ],
+    "gt_rotation": -0.9952926556508982,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        211.5,
+        243.4
+      ],
+      [
+        4095.9,
+        175.9
+      ],
+      [
+        4202.2,
+        6296.0
+      ],
+      [
+        317.8,
+        6363.5
+      ]
+    ],
+    "det_rotation": -0.9952926556508982,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 32,
+    "filepath": "raw-scans/DS9E20/Scan 32.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        850,
+        779
+      ],
+      [
+        4770,
+        785
+      ],
+      [
+        4780,
+        6794
+      ],
+      [
+        839,
+        6794
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        850.0,
+        779.0
+      ],
+      [
+        4735.0,
+        779.0
+      ],
+      [
+        4735.0,
+        6802.0
+      ],
+      [
+        850.0,
+        6802.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 33,
+    "filepath": "raw-scans/DS9E20/Scan 33.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        509,
+        383
+      ],
+      [
+        4440,
+        332
+      ],
+      [
+        4492,
+        6331
+      ],
+      [
+        561,
+        6393
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        580.0,
+        329.0
+      ],
+      [
+        4465.0,
+        329.0
+      ],
+      [
+        4465.0,
+        6378.0
+      ],
+      [
+        580.0,
+        6378.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": false,
+    "det_bleed_method": "bright_gutter+trim",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 34,
+    "filepath": "raw-scans/DS9E20/Scan 34.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        746,
+        754
+      ],
+      [
+        4631,
+        766
+      ],
+      [
+        4646,
+        6794
+      ],
+      [
+        715,
+        6753
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": true,
+    "det_corners": [
+      [
+        778.0,
+        766.0
+      ],
+      [
+        4631.0,
+        766.0
+      ],
+      [
+        4631.0,
+        6785.0
+      ],
+      [
+        778.0,
+        6785.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": true,
+    "det_bleed_method": "bright_gutter",
+    "has_correction": true
+  },
+  {
+    "scan_dir": "raw-scans/DS9E20",
+    "page_index": 35,
+    "filepath": "raw-scans/DS9E20/Scan 35.jpeg",
+    "dpi": 600,
+    "image_width": 4960,
+    "image_height": 7016,
+    "gt_corners": [
+      [
+        221,
+        208
+      ],
+      [
+        4152,
+        147
+      ],
+      [
+        4204,
+        6136
+      ],
+      [
+        273,
+        6197
+      ]
+    ],
+    "gt_rotation": 0.0,
+    "gt_rotate180": false,
+    "det_corners": [
+      [
+        216.0,
+        132.0
+      ],
+      [
+        4216.0,
+        132.0
+      ],
+      [
+        4216.0,
+        6187.0
+      ],
+      [
+        216.0,
+        6187.0
+      ]
+    ],
+    "det_rotation": 0.0,
+    "det_rotate180": false,
+    "det_bleed_method": null,
+    "has_correction": true
+  }
+]

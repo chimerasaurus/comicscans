@@ -839,6 +839,13 @@ dom.btnLoad.addEventListener('click', async () => {
     dom.btnLoad.textContent = 'Loading...';
 
     try {
+        // Close editor if open before loading new session
+        if (state.currentPage !== null) {
+            dom.editorView.classList.add('hidden');
+            dom.gridView.classList.remove('hidden');
+            state.currentPage = null;
+            state.draggingCorner = null;
+        }
         await createSession(inputDir);
         renderGrid();
     } catch (err) {
