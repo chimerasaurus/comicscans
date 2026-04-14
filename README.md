@@ -20,27 +20,74 @@ raw-scans/DS9E17/            comicscans.py              comicpackage.py
                           └──────────────┘
 ```
 
-The workflow is split into two scripts so you can inspect the processed pages before packaging, and re-package with different metadata without reprocessing.
+The workflow is split so you can inspect processed pages before packaging, and re-package with different metadata without reprocessing.
 
 | Tool | Purpose |
 |------|---------|
+| `webapp/` | Interactive web UI — visual crop editing, batch processing, CBZ packaging with ComicVine metadata |
 | `comicscans.py` | CLI image processing: page detection, rotation, deskew, bleed removal, normalization |
 | `comicpackage.py` | CLI quality control, ComicInfo.xml metadata, CBZ archive creation |
-| `webapp/` | Interactive web UI for the full workflow — visual crop editing, batch processing, CBZ packaging with ComicVine metadata |
 | `comiceval.py` | Ground-truth evaluation and parameter tuning against manual crop corrections |
 
 ---
 
-## Web App
+## Installation
 
-The web app provides an interactive UI for the entire scanning workflow. Load a directory of raw scans, visually adjust crop boundaries and rotation for each page, batch-process everything, and package the result into a CBZ — all from the browser.
+```bash
+pip install -r requirements.txt
 
-### Launch
+# Optional external dependency (required for CLI --auto-rotate)
+brew install tesseract
+```
+
+`requirements.txt` covers everything: core processing (OpenCV, Pillow, NumPy), the web app (FastAPI, Uvicorn), and parameter tuning (scipy). Python 3.8+.
+
+---
+
+## Scanner Setup
+
+Designed for the Canon LiDE 300 flatbed scanner (and similar models):
+
+- Place the comic page in the **top-left corner** of the scanner bed
+- Scan at **300 DPI** or **600 DPI** (both supported — the pipeline auto-scales)
+- The pipeline automatically handles scanner bed margins, off-white bed color (~228–243 grayscale), two-page bleed from open bindings, and slight skew from page placement
+
+Raw scans must be named `Scan.jpeg`, `Scan 1.jpeg`, `Scan 2.jpeg`, etc. (front cover is `Scan.jpeg`, then sequentially numbered). JPEG, PNG, TIFF, and BMP are supported.
+
+---
+
+## Quick Start
+
+The easiest path is the web app:
 
 ```bash
 python3 webapp/server.py
 # Opens at http://localhost:8000
 ```
+
+Load a directory, detect all pages, adjust any that need fixing, process, and package — all in the browser.
+
+CLI equivalent for a fully scripted workflow:
+
+```bash
+# 1. Process raw scans
+python3 comicscans.py raw-scans/DS9E17/ --auto-rotate --rotate 1
+
+# 2. Package into a CBZ
+python3 comicpackage.py output/DS9E17/ \
+  --title "The Secret of the Lost Orb" \
+  --series "Star Trek: Deep Space Nine" \
+  --number 17 --year 1994 --month 11 \
+  --publisher "Malibu Comics" --language en
+```
+
+Output: `output/Star Trek: Deep Space Nine-issue_017-(1994).cbz`
+
+---
+
+## Web App
+
+The web app provides an interactive UI for the entire scanning workflow. Load a directory of raw scans, visually adjust crop boundaries and rotation, batch-process everything, and package the result into a CBZ.
 
 ### Grid View
 
@@ -50,7 +97,7 @@ Thumbnails of all loaded scans with detection status badges. Click any page to o
 
 ### Editor View
 
-Per-page controls for rotation, 180° flip, and corner adjustment. Drag the corner handles to fine-tune crop boundaries. Changes auto-save to a session file in the input directory so you can pick up where you left off.
+Per-page controls for rotation, 180° flip, and corner adjustment. Drag the corner handles to fine-tune crop boundaries. Changes auto-save to a session file in the input directory.
 
 ![Editor view](docs/webui-editor.png)
 
@@ -65,95 +112,13 @@ Per-page controls for rotation, 180° flip, and corner adjustment. Drag the corn
 - **CBZ creation** — search ComicVine for series/issue metadata, review and edit fields, package into a CBZ archive
 - **Themes** — Dark, Light, Solarized, Cyberpunk, and Dune color schemes
 
-### Web App Dependencies
-
-The web app requires two additional Python packages (on top of the base requirements):
-
-```bash
-pip install fastapi uvicorn
-```
-
 ---
 
-## Evaluation & Parameter Tuning
-
-Every manual crop correction made in the web app is a labeled example of where the detector got it wrong. `comiceval.py` harvests those corrections from `.comicscans_session.json` files and uses them as ground truth for measuring detection accuracy and tuning parameters.
-
-```bash
-# 1. Collect ground truth from all processed scan directories
-python3 comiceval.py collect raw-scans/
-
-# 2. Evaluate current detection accuracy
-python3 comiceval.py eval
-
-# 3. Tune parameters to minimize mean corner distance (writes comiceval_params.json)
-python3 comiceval.py tune
-
-# 4. Compare against tuned params
-python3 comiceval.py eval --params comiceval_params.json
-```
-
-The tuner uses Nelder-Mead optimization (via scipy) with preloaded images in memory. Best-so-far parameters are saved to disk on every improvement, so long runs can be interrupted safely. The current defaults in `comicscans.py` were tuned against 105 manually-corrected pages from DS9 issues 18–20.
-
-Requires scipy for tuning (`pip install scipy`); eval and collect have no extra dependencies.
-
----
-
-## Installation
-
-```bash
-# Python dependencies (includes web app)
-pip install -r requirements.txt
-
-# External dependency (required for --auto-rotate)
-brew install tesseract
-```
-
-### Requirements
-
-- Python 3.8+
-- OpenCV (`opencv-python >= 4.8`)
-- Pillow (`>= 10.0`)
-- NumPy (`>= 1.24`)
-- FastAPI (`>= 0.110`) and Uvicorn (`>= 0.29`) — for the web app
-- [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) (optional, for automatic orientation detection via CLI)
-
----
-
-## Quick Start
-
-### 1. Process raw scans
-
-```bash
-python3 comicscans.py raw-scans/DS9E17/ \
-  --output output/DS9E17/ \
-  --auto-rotate \
-  --rotate 1
-```
-
-### 2. Package into CBZ
-
-```bash
-python3 comicpackage.py output/DS9E17/ \
-  --title "The Secret of the Lost Orb" \
-  --series "Star Trek: Deep Space Nine" \
-  --number 17 \
-  --year 1994 --month 11 \
-  --publisher "Malibu Comics" \
-  --language en
-```
-
-Output: `output/Star Trek: Deep Space Nine-issue_017-(1994).cbz`
-
----
-
-## Usage: comicscans.py
+## CLI: comicscans.py
 
 ```
 python3 comicscans.py <input_dir> [options]
 ```
-
-### Options
 
 | Flag | Description |
 |------|-------------|
@@ -166,16 +131,6 @@ python3 comicscans.py <input_dir> [options]
 | `--rotate-range` | Rotate a range of pages 180° (e.g., `2-14`) |
 | `--rotate-even` | Rotate all even-numbered pages 180° |
 | `--rotate-odd` | Rotate all odd-numbered pages 180° |
-
-### Input format
-
-Place raw scanner images in a directory. Files must follow the naming pattern:
-- `Scan.jpeg` (page 0 / front cover)
-- `Scan 1.jpeg` (page 1)
-- `Scan 2.jpeg` (page 2)
-- ...and so on
-
-Supported formats: JPEG, PNG, TIFF, BMP.
 
 ### Examples
 
@@ -193,30 +148,23 @@ python3 comicscans.py raw-scans/DS9E17/ --rotate-even
 python3 comicscans.py raw-scans/DS9E17/ --auto-rotate --preview
 
 # WebP output for smaller file size
-python3 comicscans.py raw-scans/DS9E17/ --auto-rotate --format webp
-
-# Lower quality for even smaller files
-python3 comicscans.py raw-scans/DS9E17/ --format webp --quality 75
+python3 comicscans.py raw-scans/DS9E17/ --auto-rotate --format webp --quality 75
 ```
 
 ---
 
-## Usage: comicpackage.py
+## CLI: comicpackage.py
 
 ```
 python3 comicpackage.py <pages_dir> [metadata options]
 ```
-
-### Modes
 
 | Flag | Description |
 |------|-------------|
 | `--interactive`, `-i` | Prompt for each metadata field |
 | `--qc-only` | Run QC checks only, don't package |
 
-### Metadata options
-
-`--title`, `--series`, `--number`, `--volume`, `--year`, `--month`, `--day`, `--writer`, `--penciller`, `--inker`, `--colorist`, `--letterer`, `--editor`, `--publisher`, `--web`, `--language`, `--characters`, `--teams`, `--locations`
+Metadata flags: `--title`, `--series`, `--number`, `--volume`, `--year`, `--month`, `--day`, `--writer`, `--penciller`, `--inker`, `--colorist`, `--letterer`, `--editor`, `--publisher`, `--web`, `--language`, `--characters`, `--teams`, `--locations`
 
 ### Examples
 
@@ -229,8 +177,7 @@ python3 comicpackage.py output/DS9E17/ \
   --writer "Laurie S. Sutton" \
   --penciller "Leonard Kirk" \
   --inker "Jack Snider" \
-  --publisher "Malibu Comics" \
-  --language en
+  --publisher "Malibu Comics" --language en
 
 # Interactive mode
 python3 comicpackage.py output/DS9E17/ --interactive
@@ -238,6 +185,28 @@ python3 comicpackage.py output/DS9E17/ --interactive
 # QC only (no packaging)
 python3 comicpackage.py output/DS9E17/ --qc-only
 ```
+
+---
+
+## Evaluation & Parameter Tuning
+
+Every manual crop correction in the web app is a labeled example of where the detector got it wrong. `comiceval.py` harvests those corrections from `.comicscans_session.json` files and uses them as ground truth for measuring accuracy and tuning detection parameters.
+
+```bash
+# Collect ground truth from all processed scan directories
+python3 comiceval.py collect raw-scans/
+
+# Evaluate current detection accuracy
+python3 comiceval.py eval
+
+# Tune parameters to minimize mean corner distance
+python3 comiceval.py tune
+
+# Compare against tuned params
+python3 comiceval.py eval --params comiceval_params.json
+```
+
+The tuner uses Nelder-Mead optimization (scipy) with preloaded images in memory. Best-so-far parameters are saved on every improvement, so long runs can be interrupted safely. The current defaults in `comicscans.py` were tuned against 105 manually-corrected pages from DS9 issues 18–20.
 
 ---
 
@@ -249,20 +218,18 @@ Scans are loaded from the input directory, sorted by page index, and checked for
 
 ### Step 2: Orientation Correction
 
-Pages are rotated 180° as needed. With `--auto-rotate`, Tesseract OCR runs on both the normal and flipped image, counting recognized English words. If the flipped version produces 15%+ more words, the page is upside-down.
-
-Manual `--rotate` flags take precedence and skip auto-detection for those pages.
+Pages are rotated 180° as needed. With `--auto-rotate`, Tesseract OCR runs on both the normal and flipped image, counting recognized English words. If the flipped version produces 15%+ more words, the page is upside-down. Manual `--rotate` flags take precedence.
 
 ### Step 3: Two-Page Bleed Detection
 
 When a comic is opened on a flatbed scanner, the adjacent page is often partially visible. The pipeline detects and removes this bleed using a layered strategy:
 
-1. **Dark spine shadow** — Very dark, uniform vertical bands from the binding shadow
-2. **Bright gutter** — White page margin between the two visible pages
-3. **Dark trough** — Subtle brightness dip (lighter than a full spine shadow)
-4. **Gradient detection** — Sharpest brightness transition, weighted toward the expected position
-5. **Expected width fallback** — Uses standard comic page width (6.625") at the scan DPI
-6. **Secondary trim** — If the page is still too wide after the primary cut, trims the opposite edge
+1. **Dark spine shadow** — very dark, uniform vertical bands from the binding
+2. **Bright gutter** — white page margin between the two visible pages
+3. **Dark trough** — subtle brightness dip (lighter than a full spine shadow)
+4. **Gradient detection** — sharpest brightness transition, weighted toward the expected position
+5. **Expected width fallback** — uses standard comic page width (6.625") at the scan DPI
+6. **Secondary trim** — if the page is still too wide after the primary cut, trims the opposite edge
 
 The bleed side (left vs. right) is determined by scanner bed margin position: bottom margin indicates a non-rotated page (bleed on right), top margin indicates a rotated page (bleed on left).
 
@@ -272,11 +239,11 @@ Hough line detection on the outer border regions finds near-horizontal and near-
 
 ### Step 5: Crop & Normalize
 
-Pages are cropped to their detected boundaries, then center-composited onto a uniform canvas (median width x median height across all pages). No rescaling — native resolution is preserved.
+Pages are cropped to their detected boundaries, then center-composited onto a uniform canvas (median width × median height across all pages). No rescaling — native resolution is preserved.
 
 ### Step 6: Save
 
-Pages are saved as JPEG or WebP (selected via `--format`) with the specified quality. JPEG preserves DPI metadata; WebP typically produces 30–50% smaller files at equivalent visual quality.
+Pages are saved as JPEG or WebP with the specified quality. JPEG preserves DPI metadata; WebP typically produces 30–50% smaller files at equivalent visual quality.
 
 ---
 
@@ -315,20 +282,6 @@ Star Trek: Deep Space Nine-issue_017-(1994).cbz
 
 ---
 
-## Scanner Setup
-
-Designed for the Canon LiDE 300 flatbed scanner (and similar models):
-
-- Place the comic page in the **top-left corner** of the scanner bed
-- Scan at **300 DPI** or **600 DPI** (both supported)
-- The pipeline automatically handles:
-  - Scanner bed margins (bottom and right edges)
-  - Scanner bed color (~228–243 grayscale, not pure white)
-  - Two-page bleeds from open comic bindings
-  - Slight skew from page placement
-
----
-
 ## License
 
-This project is personal-use tooling for digitizing a physical comic book collection. No comic book content is included in this repository.
+Personal-use tooling for digitizing a physical comic book collection. No comic book content is included in this repository.
