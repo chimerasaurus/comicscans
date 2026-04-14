@@ -27,6 +27,7 @@ The workflow is split into two scripts so you can inspect the processed pages be
 | `comicscans.py` | CLI image processing: page detection, rotation, deskew, bleed removal, normalization |
 | `comicpackage.py` | CLI quality control, ComicInfo.xml metadata, CBZ archive creation |
 | `webapp/` | Interactive web UI for the full workflow — visual crop editing, batch processing, CBZ packaging with ComicVine metadata |
+| `comiceval.py` | Ground-truth evaluation and parameter tuning against manual crop corrections |
 
 ---
 
@@ -59,6 +60,7 @@ Per-page controls for rotation, 180° flip, and corner adjustment. Drag the corn
 - **Auto-detection** — detect page bounds for all scans in one click
 - **Visual crop editor** — drag corner handles with zoom lens for precision; real-time rotation preview
 - **Session persistence** — detections and manual overrides saved to `.comicscans_session.json` in the input directory, restored automatically on reload
+- **Clear Cache** — button (with confirmation) to wipe stale detections and overrides for the current directory
 - **Batch processing** — process all pages to JPG or WebP at configurable quality
 - **CBZ creation** — search ComicVine for series/issue metadata, review and edit fields, package into a CBZ archive
 - **Themes** — Dark, Light, Solarized, Cyberpunk, and Dune color schemes
@@ -70,6 +72,30 @@ The web app requires two additional Python packages (on top of the base requirem
 ```bash
 pip install fastapi uvicorn
 ```
+
+---
+
+## Evaluation & Parameter Tuning
+
+Every manual crop correction made in the web app is a labeled example of where the detector got it wrong. `comiceval.py` harvests those corrections from `.comicscans_session.json` files and uses them as ground truth for measuring detection accuracy and tuning parameters.
+
+```bash
+# 1. Collect ground truth from all processed scan directories
+python3 comiceval.py collect raw-scans/
+
+# 2. Evaluate current detection accuracy
+python3 comiceval.py eval
+
+# 3. Tune parameters to minimize mean corner distance (writes comiceval_params.json)
+python3 comiceval.py tune
+
+# 4. Compare against tuned params
+python3 comiceval.py eval --params comiceval_params.json
+```
+
+The tuner uses Nelder-Mead optimization (via scipy) with preloaded images in memory. Best-so-far parameters are saved to disk on every improvement, so long runs can be interrupted safely. The current defaults in `comicscans.py` were tuned against 105 manually-corrected pages from DS9 issues 18–20.
+
+Requires scipy for tuning (`pip install scipy`); eval and collect have no extra dependencies.
 
 ---
 
