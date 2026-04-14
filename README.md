@@ -4,6 +4,8 @@ A Python toolkit for converting raw flatbed scanner images of physical comic boo
 
 > **Note:** This project was built collaboratively with [Claude](https://claude.ai) (Anthropic's AI assistant), which helped design the architecture, implement the image processing algorithms, and debug the bleed detection system. The commit history reflects this — all commits are co-authored.
 
+> **Note:** This is not useful or intended for piracy. It is useful for making digital archives of comics you physically have. It goes without saying, if you don't have the physical comicm you don't have the source images. If you have the source images, you probably already have the comic.
+
 ---
 
 ## How It Works
