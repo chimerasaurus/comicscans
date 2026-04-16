@@ -4,6 +4,8 @@ numpy>=1.24
 fastapi>=0.110
 uvicorn>=0.29
 scipy>=1.11                # optional — for comiceval.py parameter tuning
+torch>=2.0                 # optional — for comicml.py hybrid CNN detector
+torchvision>=0.15          # optional — for comicml.py hybrid CNN detector
 
 # External (not pip): tesseract — required for --auto-rotate
 # Install via: brew install tesseract

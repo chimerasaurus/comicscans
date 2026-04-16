@@ -40,6 +40,37 @@ from comicscans import (
     normalize_dimensions,
 )
 
+# Optional hybrid CNN+classical detector. Activated if a trained checkpoint
+# exists at COMICML_MODEL (env var) or the default ./comicml_model.pt.
+import os
+_MODEL_PATH_ENV = os.environ.get("COMICML_MODEL")
+_DEFAULT_MODEL = Path(__file__).resolve().parent.parent / "comicml_model.pt"
+if _MODEL_PATH_ENV and Path(_MODEL_PATH_ENV).is_file():
+    HYBRID_MODEL_PATH = _MODEL_PATH_ENV
+elif _DEFAULT_MODEL.is_file():
+    HYBRID_MODEL_PATH = str(_DEFAULT_MODEL)
+else:
+    HYBRID_MODEL_PATH = None
+
+if HYBRID_MODEL_PATH:
+    try:
+        from comicml import detect_page_bounds_hybrid
+        import torch as _torch
+        _ckpt = _torch.load(HYBRID_MODEL_PATH, map_location="cpu", weights_only=False)
+        _mtype = _ckpt.get("model_type", "regression")
+        _insize = _ckpt.get("input_size", "?")
+        _epoch = _ckpt.get("epoch", "?")
+        _val = _ckpt.get("val_px")
+        _val_str = f"{_val:.2f} px" if isinstance(_val, (int, float)) else "?"
+        _size_mb = Path(HYBRID_MODEL_PATH).stat().st_size / (1024 * 1024)
+        print(f"[webapp] Hybrid detector enabled: {HYBRID_MODEL_PATH}")
+        print(f"[webapp]   type={_mtype}  input_size={_insize}  "
+              f"epoch={_epoch}  best_val={_val_str}  file={_size_mb:.1f} MB")
+        del _ckpt
+    except Exception as e:
+        print(f"[webapp] Hybrid detector unavailable ({e}); falling back to classical.")
+        HYBRID_MODEL_PATH = None
+
 # ---------------------------------------------------------------------------
 # App setup
 # ---------------------------------------------------------------------------
@@ -425,7 +456,10 @@ def detect_page(sid: str, page_index: int):
     orig_h, orig_w = oriented_image.shape[:2]
 
     # Step 3: Detect page boundaries on the correctly-oriented image
-    bounds = detect_page_bounds(oriented_image, dpi)
+    if HYBRID_MODEL_PATH:
+        bounds = detect_page_bounds_hybrid(oriented_image, dpi, model_path=HYBRID_MODEL_PATH)
+    else:
+        bounds = detect_page_bounds(oriented_image, dpi)
 
     # Step 4: Convert deskewed bounds to oriented-image corner coordinates
     corners = _bounds_to_original_corners(bounds, orig_w, orig_h)

@@ -20,3 +20,5 @@ good-examples/
 raw-scans/
 output/
 errors/
+ground_truth.json
+ground_truth.json

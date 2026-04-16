@@ -387,6 +387,34 @@ def _save_tuned_params(param_names, x_values, bounds):
     TUNED_PARAMS_FILE.write_text(json.dumps(tuned, indent=2))
 
 
+# Persistent worker loop. Each worker holds ONLY its own chunk of images
+# (loading all 212 × ~30MB 600DPI images in every worker crashed a 128GB box).
+# Communication is via Pipe: parent sends params, worker sends back partial sum.
+def _worker_loop(conn, entries_chunk):
+    images = {}
+    for entry in entries_chunk:
+        img = cv2.imread(entry["filepath"])
+        if img is not None and entry["gt_rotate180"]:
+            img = cv2.rotate(img, cv2.ROTATE_180)
+        images[entry["filepath"]] = img
+    # Signal readiness
+    conn.send("ready")
+    while True:
+        msg = conn.recv()
+        if msg is None:
+            break
+        params = msg
+        total = 0.0
+        for entry in entries_chunk:
+            img = images.get(entry["filepath"])
+            det = run_detection(entry, params, preloaded_image=img)
+            if "error" in det:
+                total += 1000
+                continue
+            total += corner_distance(entry["gt_corners"], det["corners"])
+        conn.send(total)
+
+
 def tune_parameters(entries: list[dict]):
     """Tune detection parameters to minimize corner distance on ground truth.
 
@@ -399,24 +427,19 @@ def tune_parameters(entries: list[dict]):
         print("scipy is required for tuning: pip install scipy")
         sys.exit(1)
 
+    import multiprocessing as mp
+
     # Only tune against corrected pages (those are the known errors)
     corrected = [e for e in entries if e["has_correction"]]
     if len(corrected) < 3:
         corrected = entries
-    print(f"Tuning against {len(corrected)} corrected pages...")
 
-    # Preload all images into memory (the main bottleneck is cv2.imread)
-    print("Preloading images...")
-    t0 = time.time()
-    image_cache = {}
-    for entry in corrected:
-        fp = entry["filepath"]
-        if fp not in image_cache:
-            image = cv2.imread(fp)
-            if image is not None and entry["gt_rotate180"]:
-                image = cv2.rotate(image, cv2.ROTATE_180)
-            image_cache[fp] = image
-    print(f"  Loaded {len(image_cache)} images in {time.time() - t0:.1f}s")
+    # Cap workers conservatively: each worker holds its chunk of decoded 600-DPI
+    # images (~30MB each). 8 workers × ~26 pages × 30MB ≈ 6GB, plus ~200MB
+    # Python overhead per worker = ~8GB peak. Higher worker counts give
+    # diminishing returns (chunks get small, overhead dominates).
+    n_workers = 8
+    print(f"Tuning against {len(corrected)} corrected pages using {n_workers} workers...")
 
     # Parameters to tune and their bounds
     # (name, lower, upper, default)
@@ -438,52 +461,81 @@ def tune_parameters(entries: list[dict]):
     best_score = [float("inf")]
     best_x = [list(x0)]
 
+    # Split entries across workers — each gets a roughly equal contiguous slice.
+    n_entries = len(corrected)
+    chunk_size = (n_entries + n_workers - 1) // n_workers
+    chunks = [corrected[i:i + chunk_size] for i in range(0, n_entries, chunk_size)]
+    n_workers = len(chunks)  # in case rounding gave us fewer chunks
+
+    # Spawn workers and wait for each to finish loading its chunk.
+    print(f"Starting {n_workers} workers (each preloads ~{chunk_size} images)...")
+    t0 = time.time()
+    ctx = mp.get_context("spawn")
+    workers = []
+    for chunk in chunks:
+        parent_conn, child_conn = ctx.Pipe()
+        proc = ctx.Process(target=_worker_loop, args=(child_conn, chunk))
+        proc.start()
+        workers.append((proc, parent_conn))
+    # Wait for ready signal from each
+    for _, conn in workers:
+        msg = conn.recv()
+        assert msg == "ready"
+    print(f"  Workers ready in {time.time() - t0:.1f}s")
+
     def objective(x):
         # Clip to bounds
         params = dict(DEFAULT_PARAMS)
         for name, val, (lo, hi) in zip(param_names, x, bounds):
             params[name] = max(lo, min(hi, val))
 
-        total_dist = 0
-        for entry in corrected:
-            img = image_cache.get(entry["filepath"])
-            det = run_detection(entry, params, preloaded_image=img)
-            if "error" in det:
-                total_dist += 1000
-                continue
-            total_dist += corner_distance(entry["gt_corners"], det["corners"])
+        # Fan out: send params to every worker, then collect partial sums.
+        for _, conn in workers:
+            conn.send(params)
+        total_dist = sum(conn.recv() for _, conn in workers)
 
-        mean_dist = total_dist / len(corrected)
+        mean_dist = total_dist / n_entries
         eval_count[0] += 1
         if mean_dist < best_score[0]:
             best_score[0] = mean_dist
             best_x[0] = list(x)
-            # Save best-so-far params to disk so we never lose progress
             _save_tuned_params(param_names, best_x[0], bounds)
         if eval_count[0] % 5 == 0:
             print(f"  eval {eval_count[0]:>4d}: current = {mean_dist:.1f} px, best = {best_score[0]:.1f} px",
                   flush=True)
         return mean_dist
 
-    # Run baseline
-    baseline = objective(x0)
-    print(f"\nBaseline mean corner distance: {baseline:.1f} px")
-    print(f"\nRunning Nelder-Mead optimization (maxiter=80)...\n")
+    try:
+        # Run baseline
+        baseline = objective(x0)
+        print(f"\nBaseline mean corner distance: {baseline:.1f} px")
+        print(f"\nRunning Nelder-Mead optimization (maxiter=120)...\n")
 
-    t0 = time.time()
+        t0 = time.time()
 
-    result = minimize(
-        objective,
-        x0=x0,
-        method="Nelder-Mead",
-        options={
-            "maxiter": 80,
-            "xatol": 0.05,
-            "fatol": 0.3,
-            "adaptive": True,
-            "disp": True,
-        },
-    )
+        result = minimize(
+            objective,
+            x0=x0,
+            method="Nelder-Mead",
+            options={
+                "maxiter": 120,
+                "xatol": 0.05,
+                "fatol": 0.3,
+                "adaptive": True,
+                "disp": True,
+            },
+        )
+    finally:
+        # Shut down workers cleanly.
+        for _, conn in workers:
+            try:
+                conn.send(None)
+            except Exception:
+                pass
+        for proc, _ in workers:
+            proc.join(timeout=5)
+            if proc.is_alive():
+                proc.terminate()
 
     elapsed = time.time() - t0
     print(f"\nOptimization completed in {elapsed:.1f}s ({eval_count[0]} evaluations)")

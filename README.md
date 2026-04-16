@@ -4,7 +4,7 @@ A Python toolkit for converting raw flatbed scanner images of physical comic boo
 
 > **Note:** This project was built collaboratively with [Claude](https://claude.ai) (Anthropic's AI assistant), which helped design the architecture, implement the image processing algorithms, and debug the bleed detection system. The commit history reflects this — all commits are co-authored.
 
-> **Note:** This is not useful or intended for piracy. It is useful for making digital archives of comics you physically have. It goes without saying, if you don't have the physical comicm you don't have the source images. If you have the source images, you probably already have the comic.
+> **Note:** This is not useful or intended for piracy. It is useful for making digital archives of comics you physically have. It goes without saying, if you don't have the physical comic you don't have the source images. If you have the source images, you probably already have the comic.
 
 ---
 
@@ -30,6 +30,7 @@ The workflow is split so you can inspect processed pages before packaging, and r
 | `comicscans.py` | CLI image processing: page detection, rotation, deskew, bleed removal, normalization |
 | `comicpackage.py` | CLI quality control, ComicInfo.xml metadata, CBZ archive creation |
 | `comiceval.py` | Ground-truth evaluation and parameter tuning against manual crop corrections |
+| `comicml.py` | Hybrid detector: ResNet-18 corner regression + line-fit edge refinement (~23 px mean error) |
 
 ---
 
@@ -42,7 +43,7 @@ pip install -r requirements.txt
 brew install tesseract
 ```
 
-`requirements.txt` covers everything: core processing (OpenCV, Pillow, NumPy), the web app (FastAPI, Uvicorn), and parameter tuning (scipy). Python 3.8+.
+`requirements.txt` covers everything: core processing (OpenCV, Pillow, NumPy), the web app (FastAPI, Uvicorn), parameter tuning (scipy), and the hybrid CNN detector (PyTorch, torchvision). Python 3.10+.
 
 ---
 
@@ -133,6 +134,7 @@ python3 comicscans.py <input_dir> [options]
 | `--rotate-range` | Rotate a range of pages 180° (e.g., `2-14`) |
 | `--rotate-even` | Rotate all even-numbered pages 180° |
 | `--rotate-odd` | Rotate all odd-numbered pages 180° |
+| `--model` | Path to trained CNN checkpoint (enables hybrid CNN+classical detector) |
 
 ### Examples
 
@@ -208,7 +210,35 @@ python3 comiceval.py tune
 python3 comiceval.py eval --params comiceval_params.json
 ```
 
-The tuner uses Nelder-Mead optimization (scipy) with preloaded images in memory. Best-so-far parameters are saved on every improvement, so long runs can be interrupted safely. The current defaults in `comicscans.py` were tuned against 105 manually-corrected pages from DS9 issues 18–20.
+The tuner uses Nelder-Mead optimization (scipy) with preloaded images in memory. Best-so-far parameters are saved on every improvement, so long runs can be interrupted safely.
+
+---
+
+## Hybrid CNN Detector
+
+Classical detection hit a structural ceiling around 117 px mean corner error. `comicml.py` replaces it with a two-stage hybrid detector:
+
+1. **CNN stage** — a ResNet-18 backbone (768×768 input) regresses all four page corners directly. Test-time augmentation (horizontal flip + average) reduces variance. Trained on 502 labeled pages across 13 DS9 issues with cosine-annealed AdamW over 120 epochs.
+
+2. **Line-fit refinement** — samples ~30 gradient profiles along each predicted page edge, RANSAC-fits a line through confident detections, and intersects adjacent lines for corner coordinates. Falls back to per-corner snap when the line fit disagrees with independent per-corner evidence (agreement gating prevents catastrophic failures from spurious edges on bleed-heavy pages).
+
+On a 70-page holdout (DS9E20 + DS9E23), the hybrid detector achieves **23.3 px mean corner error** (median 19.9, P95 33.5) — an ~80% improvement over the classical detector.
+
+```bash
+# Train on labeled issues, holding out 2 for evaluation
+python3 comicml.py train \
+    --train DS9E18,DS9E19,DS9E21,DS9E22,DS9E2.3,DS9E24,DS9E25,DS9E26,DS9E27,DS9E28,DS9E29,DS9E30,DS9E31 \
+    --holdout DS9E20,DS9E23 \
+    --input-size 768 --epochs 120
+
+# Evaluate CNN-only and hybrid against ground truth
+python3 comicml.py eval --hybrid
+
+# Use hybrid detector from the CLI
+python3 comicscans.py raw-scans/DS9E17/ --auto-rotate --model comicml_model.pt
+```
+
+The web app automatically uses the hybrid detector when `comicml_model.pt` exists in the repo root (or when `COMICML_MODEL` env var points to a checkpoint). On startup it prints the loaded model's type, input size, and validation accuracy.
 
 ---
 

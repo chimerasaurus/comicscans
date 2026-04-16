@@ -804,7 +804,8 @@ def preview_pages(pages, indices=None):
 # ---------------------------------------------------------------------------
 
 def process(input_dir, output_dir=None, quality=85, preview=False,
-            pages_to_rotate=None, auto_rotate=False, fmt='jpg', lossless=False):
+            pages_to_rotate=None, auto_rotate=False, fmt='jpg', lossless=False,
+            model_path=None):
     """Main processing pipeline."""
     input_path = Path(input_dir)
 
@@ -869,7 +870,11 @@ def process(input_dir, output_dir=None, quality=85, preview=False,
                 print(f"    Orientation OK (auto: {nw}w normal, {rw}w rotated)")
 
         # Detect page bounds using this page's actual DPI
-        bounds = detect_page_bounds(image, page_dpi)
+        if model_path:
+            from comicml import detect_page_bounds_hybrid
+            bounds = detect_page_bounds_hybrid(image, page_dpi, model_path=model_path)
+        else:
+            bounds = detect_page_bounds(image, page_dpi)
         det_w = bounds['right'] - bounds['left']
         det_h = bounds['bottom'] - bounds['top']
         margins = (f"T={bounds['top']} "
@@ -953,6 +958,9 @@ def main():
     rotate_group.add_argument('--auto-rotate', action='store_true',
         help='Auto-detect and correct upside-down pages using Tesseract OCR')
 
+    parser.add_argument('--model',
+        help='Path to trained CNN model checkpoint (enables hybrid CNN+classical detector)')
+
     args = parser.parse_args()
 
     if not Path(args.input_dir).is_dir():
@@ -968,7 +976,7 @@ def main():
     print()
     process(args.input_dir, args.output, args.quality, args.preview,
             pages_to_rotate, auto_rotate=args.auto_rotate, fmt=args.format,
-            lossless=args.lossless)
+            lossless=args.lossless, model_path=args.model)
 
 
 if __name__ == '__main__':
