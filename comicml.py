@@ -14,10 +14,10 @@ Usage:
         --epochs 60
 
     # Evaluate a trained model
-    python3 comicml.py eval --model comicml_model.pt
+    python3 comicml.py eval --model comicml_model_reg_768_605pg.pt
 
     # Predict corners for a single image (for inspection)
-    python3 comicml.py predict path/to/Scan.jpeg --model comicml_model.pt
+    python3 comicml.py predict path/to/Scan.jpeg --model comicml_model_reg_768_605pg.pt
 """
 
 import argparse
@@ -36,7 +36,7 @@ from torch.utils.data import DataLoader, Dataset
 from torchvision import models, transforms
 
 GROUND_TRUTH_FILE = Path(__file__).parent / "ground_truth.json"
-MODEL_FILE = Path(__file__).parent / "comicml_model.pt"
+MODEL_FILE = Path(__file__).parent / "comicml_model_reg_768_605pg.pt"
 
 # Production ensemble: hybrid eval on DS9E20+E23 holdout (70 pages) shows this
 # 4-model average drops the max corner error from 50.9 → 42.6 px (−16%) vs the
@@ -1152,7 +1152,7 @@ def main():
     p_train.add_argument("--seed", type=int, default=None,
                          help="Random seed for reproducibility / multi-seed ensemble training")
     p_train.add_argument("--output", type=str, default=None,
-                         help="Output model path (default: comicml_model.pt)")
+                         help=f"Output model path (default: {MODEL_FILE.name})")
     p_train.add_argument("--heatmap", action="store_true",
                          help="Use heatmap regression head (sub-pixel soft-argmax) instead of direct coord regression")
     p_train.add_argument("--hmap-sigma", type=float, default=2.0,

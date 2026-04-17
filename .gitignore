@@ -22,9 +22,8 @@ output/
 errors/
 diagnose_out/
 
-# Model checkpoints (large binary files) — keep the production model
+# Model checkpoints (large binary files — not tracked in git)
 *.pt
-!comicml_model.pt
 
 # Ground truth (generated from session files via comiceval.py collect)
 ground_truth.json
