@@ -13,6 +13,7 @@ Usage:
 
 import io
 import json
+import re
 import sys
 import time
 import uuid
@@ -464,20 +465,33 @@ def detect_page(sid: str, page_index: int):
 
     orig_h, orig_w = oriented_image.shape[:2]
 
-    # Step 3: Detect page boundaries on the correctly-oriented image
+    # Step 3: Detect page boundaries on the correctly-oriented image.
+    # We run detection with NO inward shift so we get the raw detected edges,
+    # then compute the shifted "crop" bounds from the configured shift. This
+    # lets the UI draw both overlays (raw detected + inward crop rectangle).
+    sx, sy = _get_inward_shift()
     if HYBRID_MODEL_PATH:
-        sx, sy = _get_inward_shift()
         bounds = detect_page_bounds_hybrid(oriented_image, dpi,
                                            model_path=HYBRID_MODEL_PATH,
-                                           inward_shift_x=sx, inward_shift_y=sy)
+                                           inward_shift_x=0.0, inward_shift_y=0.0)
     else:
         bounds = detect_page_bounds(oriented_image, dpi)
 
-    # Step 4: Convert deskewed bounds to oriented-image corner coordinates
-    corners = _bounds_to_original_corners(bounds, orig_w, orig_h)
+    # Raw detected corners in oriented-image space
+    detected_corners = _bounds_to_original_corners(bounds, orig_w, orig_h)
+
+    # Compute shifted bounds → the actual crop rectangle
+    shifted_bounds = dict(bounds)
+    shifted_bounds["top"] = bounds["top"] + sy
+    shifted_bounds["bottom"] = bounds["bottom"] - sy
+    shifted_bounds["left"] = bounds["left"] + sx
+    shifted_bounds["right"] = bounds["right"] - sx
+    corners = _bounds_to_original_corners(shifted_bounds, orig_w, orig_h)
 
     result = {
-        "corners": corners,
+        "corners": corners,                   # crop bounds (draggable, used at crop time)
+        "detected_corners": detected_corners, # raw detected edges (informational)
+        "inward_shift": {"x": sx, "y": sy},
         "rotation": bounds["angle"],
         "rotate180": rotate180,
         "bleed_method": bounds.get("bleed_method"),
@@ -662,6 +676,14 @@ CONFIG_PATH = Path.home() / ".comicscans_config.json"
 DEFAULT_INWARD_SHIFT_X = 13
 DEFAULT_INWARD_SHIFT_Y = 11
 
+# Editor overlay defaults
+DEFAULT_DETECTED_COLOR = "#e94560"   # accent red — raw detected edges
+DEFAULT_DETECTED_STYLE = "dashed"
+DEFAULT_CROP_COLOR     = "#00e0b8"   # teal — actual crop rectangle
+DEFAULT_CROP_STYLE     = "solid"
+DEFAULT_SHOW_DETECTED  = True
+VALID_LINE_STYLES = ("solid", "dashed", "dotted")
+
 
 def _load_config() -> dict:
     if CONFIG_PATH.exists():
@@ -702,6 +724,20 @@ def get_settings():
             "x": DEFAULT_INWARD_SHIFT_X,
             "y": DEFAULT_INWARD_SHIFT_Y,
         },
+        "overlay": {
+            "detected_color": config.get("detected_color", DEFAULT_DETECTED_COLOR),
+            "detected_style": config.get("detected_style", DEFAULT_DETECTED_STYLE),
+            "crop_color":     config.get("crop_color",     DEFAULT_CROP_COLOR),
+            "crop_style":     config.get("crop_style",     DEFAULT_CROP_STYLE),
+            "show_detected":  bool(config.get("show_detected", DEFAULT_SHOW_DETECTED)),
+        },
+        "overlay_defaults": {
+            "detected_color": DEFAULT_DETECTED_COLOR,
+            "detected_style": DEFAULT_DETECTED_STYLE,
+            "crop_color":     DEFAULT_CROP_COLOR,
+            "crop_style":     DEFAULT_CROP_STYLE,
+            "show_detected":  DEFAULT_SHOW_DETECTED,
+        },
     }
 
 
@@ -723,6 +759,22 @@ def set_settings(req: dict):
             config["inward_shift_y"] = float(req["inward_shift_y"])
         except (TypeError, ValueError):
             raise HTTPException(status_code=400, detail="inward_shift_y must be a number")
+    # Overlay styling
+    for color_key in ("detected_color", "crop_color"):
+        if color_key in req:
+            v = str(req[color_key] or "").strip()
+            # Very light validation: accept #rgb or #rrggbb
+            if v and not re.match(r"^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$", v):
+                raise HTTPException(status_code=400, detail=f"{color_key} must be a hex color like #ffcc00")
+            config[color_key] = v
+    for style_key in ("detected_style", "crop_style"):
+        if style_key in req:
+            v = str(req[style_key] or "").strip().lower()
+            if v not in VALID_LINE_STYLES:
+                raise HTTPException(status_code=400, detail=f"{style_key} must be one of {VALID_LINE_STYLES}")
+            config[style_key] = v
+    if "show_detected" in req:
+        config["show_detected"] = bool(req["show_detected"])
     _save_config(config)
     return {"status": "ok"}
 
