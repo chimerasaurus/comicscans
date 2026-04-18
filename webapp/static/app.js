@@ -15,8 +15,25 @@ const state = {
     draggingCorner: null, // 0-3 or null during drag
 };
 
-// Display-space corner coordinates for the overlay canvas
+// Display-space corner coordinates for the overlay canvas (crop bounds — draggable)
 let displayCorners = [[0, 0], [0, 0], [0, 0], [0, 0]];
+// Display-space detected corners (informational — non-draggable)
+let displayDetectedCorners = null;
+
+// Overlay style config (populated from /api/config/settings)
+let overlayConfig = {
+    detected_color: '#e94560',
+    detected_style: 'dashed',
+    crop_color:     '#00e0b8',
+    crop_style:     'solid',
+    show_detected:  true,
+};
+
+function lineDashForStyle(style, lineWidth) {
+    if (style === 'dashed') return [Math.max(6, lineWidth * 3), Math.max(4, lineWidth * 2)];
+    if (style === 'dotted') return [Math.max(2, lineWidth), Math.max(3, lineWidth * 2)];
+    return []; // solid
+}
 
 // ===== DOM References =====
 
@@ -127,8 +144,9 @@ async function detectPage(pageIndex) {
 async function detectAll() {
     const sid = state.sessionId;
     const total = state.pages.length;
+    const lbl = dom.btnDetectAll.querySelector('.btn-lbl');
     for (let i = 0; i < total; i++) {
-        dom.btnDetectAll.textContent = `Detecting ${i + 1}/${total}...`;
+        if (lbl) lbl.textContent = `Detecting ${i + 1}/${total}…`;
         try {
             const result = await apiPost(`/api/session/${sid}/detect/${i}`);
             state.detections[i] = result;
@@ -391,6 +409,13 @@ function getPageData(pageIndex) {
 /** Load detection data into the overlay. */
 function loadDetectionOverlay(pageIndex) {
     const data = getPageData(pageIndex);
+    // Detected corners always come from the original detection (never from override)
+    const detection = state.detections[pageIndex];
+    const scale = state.editorScale;
+    displayDetectedCorners = (detection && detection.detected_corners)
+        ? detection.detected_corners.map(([x, y]) => [x * scale, y * scale])
+        : null;
+
     if (!data || !data.corners) {
         // No detection yet — clear overlay and set defaults
         overlayCtx.clearRect(0, 0, dom.overlayCanvas.width, dom.overlayCanvas.height);
@@ -414,16 +439,29 @@ function loadDetectionOverlay(pageIndex) {
     dom.rotationValue.textContent = rotation.toFixed(2);
     dom.rotate180Status.textContent = data.rotate180 ? 'On' : 'Off';
 
-    // Convert original-pixel corners to display-pixel corners
+    // Convert original-pixel crop corners to display-pixel corners
     // corners format: [[x,y], [x,y], [x,y], [x,y]] = TL, TR, BR, BL
-    const scale = state.editorScale;
     displayCorners = data.corners.map(([x, y]) => [x * scale, y * scale]);
 
     updateCornerDisplay();
     drawOverlay();
 }
 
-/** Draw the overlay: mask, quadrilateral edges, corner handles. */
+/** Stroke a closed 4-point polygon with a given color + style (solid/dashed/dotted). */
+function strokePolygon(ctx, pts, color, style, lineWidth) {
+    ctx.save();
+    ctx.setLineDash(lineDashForStyle(style, lineWidth));
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineWidth;
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.restore();
+}
+
+/** Draw the overlay: mask, detected-bounds polygon, crop polygon, corner handles. */
 function drawOverlay() {
     const ctx = overlayCtx;
     const w = dom.overlayCanvas.width;
@@ -432,11 +470,10 @@ function drawOverlay() {
 
     if (displayCorners.length < 4) return;
 
-    // Draw dark mask outside the crop quadrilateral
+    // Dark mask outside the crop quadrilateral (shows the actual crop region)
     ctx.save();
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
     ctx.fillRect(0, 0, w, h);
-    // Cut out the quadrilateral
     ctx.globalCompositeOperation = 'destination-out';
     ctx.beginPath();
     ctx.moveTo(displayCorners[0][0], displayCorners[0][1]);
@@ -447,28 +484,30 @@ function drawOverlay() {
     ctx.fill();
     ctx.restore();
 
-    // Draw edges
-    ctx.strokeStyle = '#e94560';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(displayCorners[0][0], displayCorners[0][1]);
-    for (let i = 1; i < 4; i++) {
-        ctx.lineTo(displayCorners[i][0], displayCorners[i][1]);
+    // Detected-bounds polygon (informational, drawn underneath)
+    if (overlayConfig.show_detected && displayDetectedCorners && displayDetectedCorners.length === 4) {
+        strokePolygon(ctx, displayDetectedCorners,
+                      overlayConfig.detected_color, overlayConfig.detected_style, 2);
     }
-    ctx.closePath();
-    ctx.stroke();
 
-    // Draw corner handles
+    // Crop polygon (draggable)
+    strokePolygon(ctx, displayCorners,
+                  overlayConfig.crop_color, overlayConfig.crop_style, 2);
+
+    // Crop corner handles
     for (let i = 0; i < 4; i++) {
         const [x, y] = displayCorners[i];
         ctx.beginPath();
         ctx.arc(x, y, 8, 0, Math.PI * 2);
         ctx.fillStyle = 'white';
         ctx.fill();
-        ctx.strokeStyle = '#e94560';
+        ctx.strokeStyle = overlayConfig.crop_color;
         ctx.lineWidth = 2;
         ctx.stroke();
     }
+
+    // Keep the corner preview thumbnails in sync with every redraw
+    drawCornerPreviews();
 }
 
 /** Convert display corners back to original image coordinates and store as override. */
@@ -580,8 +619,24 @@ function showZoomLens(canvasX, canvasY) {
     zoomCtx.save();
     zoomCtx.scale(ZOOM_LEVEL, ZOOM_LEVEL);
     zoomCtx.translate(-sx, -sy);
-    // Draw edges
-    zoomCtx.strokeStyle = '#e94560';
+
+    // Detected polygon (same style as main canvas)
+    if (overlayConfig.show_detected && displayDetectedCorners && displayDetectedCorners.length === 4) {
+        zoomCtx.save();
+        zoomCtx.setLineDash(lineDashForStyle(overlayConfig.detected_style, 2).map(v => v / ZOOM_LEVEL));
+        zoomCtx.strokeStyle = overlayConfig.detected_color;
+        zoomCtx.lineWidth = 2 / ZOOM_LEVEL;
+        zoomCtx.beginPath();
+        zoomCtx.moveTo(displayDetectedCorners[0][0], displayDetectedCorners[0][1]);
+        for (let i = 1; i < 4; i++) zoomCtx.lineTo(displayDetectedCorners[i][0], displayDetectedCorners[i][1]);
+        zoomCtx.closePath();
+        zoomCtx.stroke();
+        zoomCtx.restore();
+    }
+
+    // Crop polygon
+    zoomCtx.setLineDash(lineDashForStyle(overlayConfig.crop_style, 2).map(v => v / ZOOM_LEVEL));
+    zoomCtx.strokeStyle = overlayConfig.crop_color;
     zoomCtx.lineWidth = 2 / ZOOM_LEVEL;
     zoomCtx.beginPath();
     zoomCtx.moveTo(displayCorners[0][0], displayCorners[0][1]);
@@ -595,6 +650,108 @@ function showZoomLens(canvasX, canvasY) {
 
 function hideZoomLens() {
     zoomLens.style.display = 'none';
+}
+
+// ===== Corner previews (2x2 zoomed thumbnails of each crop corner) =====
+
+// Zoom factor for the corner preview thumbnails
+const CP_ZOOM = 3.5;
+
+function getCornerPreviewEls() {
+    return Array.from(document.querySelectorAll('#corner-previews .corner-preview'));
+}
+
+/** Render all 4 corner preview thumbnails — called from drawOverlay and
+ *  whenever overlay config / corners change. */
+function drawCornerPreviews() {
+    const img = state.editorImage;
+    if (!img || !dom.bgCanvas.width) return;
+    if (!displayCorners || displayCorners.length !== 4) return;
+
+    const previews = getCornerPreviewEls();
+    previews.forEach((el) => {
+        const cornerIdx = parseInt(el.dataset.corner, 10);
+        const canvas = el.querySelector('canvas');
+        if (!canvas) return;
+
+        // Size the backing store to match the rendered element size, for
+        // crisp pixels on hiDPI displays.
+        const rect = el.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        const P = Math.max(1, Math.round(rect.width * dpr));
+        if (canvas.width !== P || canvas.height !== P) {
+            canvas.width = P;
+            canvas.height = P;
+        }
+        const ctx = canvas.getContext('2d');
+        ctx.save();
+        ctx.clearRect(0, 0, P, P);
+
+        // Center the preview on this corner (in display/bgCanvas coordinates).
+        const [cx, cy] = displayCorners[cornerIdx];
+        // Region of bgCanvas to sample. srcSize = how much of the image we see.
+        const srcSize = P / (CP_ZOOM * dpr);
+        const sx = cx - srcSize / 2;
+        const sy = cy - srcSize / 2;
+
+        // drawImage from the already-painted bgCanvas (which is correctly
+        // oriented and sized for display). Out-of-bounds areas are drawn as
+        // transparent/empty which is fine — we filled bg with canvas color.
+        ctx.fillStyle = getComputedStyle(document.documentElement)
+            .getPropertyValue('--bg-canvas') || '#000';
+        ctx.fillRect(0, 0, P, P);
+        ctx.drawImage(dom.bgCanvas, sx, sy, srcSize, srcSize, 0, 0, P, P);
+
+        // Transform subsequent overlay drawing so display-space coords map
+        // into preview-space: (dx - cx) * Z + P/2, where Z = CP_ZOOM * dpr.
+        const Z = CP_ZOOM * dpr;
+        ctx.translate(P / 2, P / 2);
+        ctx.scale(Z, Z);
+        ctx.translate(-cx, -cy);
+
+        const lw = 1.25 / Z; // constant-looking 1.25px after scaling
+        const dashScale = 1 / Z;
+
+        // Detected polygon
+        if (overlayConfig.show_detected && displayDetectedCorners && displayDetectedCorners.length === 4) {
+            ctx.save();
+            ctx.setLineDash(lineDashForStyle(overlayConfig.detected_style, 2).map(v => v * dashScale));
+            ctx.strokeStyle = overlayConfig.detected_color;
+            ctx.lineWidth = lw;
+            ctx.beginPath();
+            ctx.moveTo(displayDetectedCorners[0][0], displayDetectedCorners[0][1]);
+            for (let i = 1; i < 4; i++) ctx.lineTo(displayDetectedCorners[i][0], displayDetectedCorners[i][1]);
+            ctx.closePath();
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // Crop polygon
+        ctx.save();
+        ctx.setLineDash(lineDashForStyle(overlayConfig.crop_style, 2).map(v => v * dashScale));
+        ctx.strokeStyle = overlayConfig.crop_color;
+        ctx.lineWidth = lw;
+        ctx.beginPath();
+        ctx.moveTo(displayCorners[0][0], displayCorners[0][1]);
+        for (let i = 1; i < 4; i++) ctx.lineTo(displayCorners[i][0], displayCorners[i][1]);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.restore();
+
+        // Crosshair on the corner itself
+        const ch = 6 / Z;
+        ctx.save();
+        ctx.strokeStyle = overlayConfig.crop_color;
+        ctx.lineWidth = lw;
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.moveTo(cx - ch, cy); ctx.lineTo(cx + ch, cy);
+        ctx.moveTo(cx, cy - ch); ctx.lineTo(cx, cy + ch);
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.restore();
+    });
 }
 
 // ===== Canvas Mouse Interaction =====
@@ -827,45 +984,45 @@ document.addEventListener('keydown', (e) => {
 
 // ===== Top Bar Actions =====
 
-// Load button
-dom.btnLoad.addEventListener('click', async () => {
-    const inputDir = dom.inputDir.value.trim();
-    if (!inputDir) {
-        alert('Please enter a directory path.');
-        return;
-    }
-
-    dom.btnLoad.disabled = true;
-    dom.btnLoad.textContent = 'Loading...';
-
+// Load helper — used by the dir pill (Change / Reload) actions
+async function loadDirectory(inputDir) {
+    if (!inputDir) return;
+    dom.inputDir.value = inputDir;
     try {
-        // Close editor if open before loading new session
-        if (state.currentPage !== null) {
-            dom.editorView.classList.add('hidden');
-            dom.gridView.classList.remove('hidden');
-            state.currentPage = null;
-            state.draggingCorner = null;
-        }
+        localStorage.setItem('comicscans-input-dir', inputDir);
+    } catch (e) { /* ignore */ }
+
+    // Close editor if open before loading new session
+    if (state.currentPage !== null) {
+        dom.editorView.classList.add('hidden');
+        dom.gridView.classList.remove('hidden');
+        state.currentPage = null;
+        state.draggingCorner = null;
+    }
+    try {
         await createSession(inputDir);
         renderGrid();
+        updateDirPill();
     } catch (err) {
         console.error('Failed to create session:', err);
         alert('Failed to load directory: ' + err.message);
-    } finally {
-        dom.btnLoad.disabled = false;
-        dom.btnLoad.textContent = 'Load';
     }
-});
+}
 
-// Detect All button
+// Legacy btn-load hook (kept hidden in DOM) — no longer user-facing
+dom.btnLoad.addEventListener('click', () => loadDirectory(dom.inputDir.value.trim()));
+
+// Detect button — runs detect on every page
 dom.btnDetectAll.addEventListener('click', async () => {
     if (!state.sessionId) {
-        alert('Load a directory first.');
+        alert('Load a scan directory first.');
         return;
     }
 
+    const lbl = dom.btnDetectAll.querySelector('.btn-lbl');
     dom.btnDetectAll.disabled = true;
-    dom.btnDetectAll.textContent = 'Detecting...';
+    const origLabel = lbl ? lbl.textContent : 'Detect';
+    if (lbl) lbl.textContent = 'Detecting…';
 
     try {
         await detectAll();
@@ -875,9 +1032,13 @@ dom.btnDetectAll.addEventListener('click', async () => {
         alert('Detection failed: ' + err.message);
     } finally {
         dom.btnDetectAll.disabled = false;
-        dom.btnDetectAll.textContent = 'Detect All';
+        if (lbl) lbl.textContent = origLabel;
     }
 });
+
+// The stale detectAll loop touches .textContent directly — patch it so the
+// per-iteration "Detecting X/N" label targets just the label span.
+// (Overwrite the simple default behavior by re-implementing detectAll below.)
 
 // Clear Cache button
 dom.btnClearSession.addEventListener('click', async () => {
@@ -1393,6 +1554,307 @@ fpDom.btnSelect.addEventListener('click', () => {
 fpDom.btnClose.addEventListener('click', () => {
     fpDom.modal.classList.add('hidden');
 });
+
+// ===== Settings modal =====
+const settingsDom = {
+    modal: document.getElementById('settings-modal'),
+    btnOpen: document.getElementById('btn-settings'),
+    btnClose: document.getElementById('btn-settings-close'),
+    btnSave: document.getElementById('btn-settings-save'),
+    btnResetDefaults: document.getElementById('btn-settings-reset-defaults'),
+    cvKey: document.getElementById('settings-cv-key'),
+    cvStatus: document.getElementById('settings-cv-status'),
+    shiftX: document.getElementById('settings-shift-x'),
+    shiftY: document.getElementById('settings-shift-y'),
+    shiftDefaults: document.getElementById('settings-shift-defaults'),
+    saveStatus: document.getElementById('settings-save-status'),
+    // Overlay style
+    cropColor: document.getElementById('settings-crop-color'),
+    cropStyle: document.getElementById('settings-crop-style'),
+    cropSwatch: document.getElementById('settings-crop-swatch'),
+    detColor: document.getElementById('settings-detected-color'),
+    detStyle: document.getElementById('settings-detected-style'),
+    detSwatch: document.getElementById('settings-detected-swatch'),
+    showDet: document.getElementById('settings-show-detected'),
+};
+
+let settingsDefaults = { x: 13, y: 11 };
+let overlayDefaults = {
+    detected_color: '#e94560',
+    detected_style: 'dashed',
+    crop_color: '#00e0b8',
+    crop_style: 'solid',
+    show_detected: true,
+};
+
+function applyOverlayFromConfig(ovr) {
+    if (!ovr) return;
+    overlayConfig = Object.assign({}, overlayConfig, ovr);
+    // Refresh swatches in settings panel
+    if (settingsDom.cropSwatch) settingsDom.cropSwatch.style.background = overlayConfig.crop_color;
+    if (settingsDom.detSwatch)  settingsDom.detSwatch.style.background  = overlayConfig.detected_color;
+    // Redraw if editor open
+    if (state.currentPage !== null && state.editorImage) drawOverlay();
+}
+
+async function loadSettings() {
+    try {
+        const s = await apiGet('/api/config/settings');
+        // API key
+        if (s.comicvine_api_key && s.comicvine_api_key.has_key) {
+            settingsDom.cvStatus.textContent = `API key saved (${s.comicvine_api_key.masked})`;
+            settingsDom.cvKey.placeholder = 'Key saved — enter new key to replace';
+        } else {
+            settingsDom.cvStatus.innerHTML = 'No API key saved. <a href="https://comicvine.gamespot.com/api/" target="_blank">Get one here</a>';
+        }
+        settingsDom.cvKey.value = '';
+        // Inward shifts
+        settingsDom.shiftX.value = s.inward_shift_x;
+        settingsDom.shiftY.value = s.inward_shift_y;
+        settingsDefaults = s.inward_shift_defaults || { x: 13, y: 11 };
+        settingsDom.shiftDefaults.textContent =
+            `Measured defaults: X=${settingsDefaults.x}, Y=${settingsDefaults.y}.`;
+        // Overlay style
+        if (s.overlay) {
+            applyOverlayFromConfig(s.overlay);
+            settingsDom.cropColor.value = s.overlay.crop_color;
+            settingsDom.cropStyle.value = s.overlay.crop_style;
+            settingsDom.detColor.value  = s.overlay.detected_color;
+            settingsDom.detStyle.value  = s.overlay.detected_style;
+            settingsDom.showDet.checked = !!s.overlay.show_detected;
+        }
+        if (s.overlay_defaults) overlayDefaults = s.overlay_defaults;
+        settingsDom.saveStatus.textContent = '';
+    } catch (e) {
+        settingsDom.saveStatus.textContent = 'Failed to load settings: ' + e.message;
+    }
+}
+
+// Load overlay config once at startup so detection overlays render correctly
+// even if the user never opens the settings modal.
+(async function bootstrapOverlaySettings() {
+    try {
+        const s = await apiGet('/api/config/settings');
+        if (s && s.overlay) applyOverlayFromConfig(s.overlay);
+        if (s && s.overlay_defaults) overlayDefaults = s.overlay_defaults;
+    } catch (e) { /* ignore — defaults remain */ }
+})();
+
+settingsDom.btnOpen.addEventListener('click', async () => {
+    await loadSettings();
+    settingsDom.modal.classList.remove('hidden');
+});
+
+settingsDom.btnClose.addEventListener('click', () => {
+    settingsDom.modal.classList.add('hidden');
+});
+
+settingsDom.btnSave.addEventListener('click', async () => {
+    const payload = {
+        inward_shift_x: parseFloat(settingsDom.shiftX.value),
+        inward_shift_y: parseFloat(settingsDom.shiftY.value),
+        crop_color:     settingsDom.cropColor.value,
+        crop_style:     settingsDom.cropStyle.value,
+        detected_color: settingsDom.detColor.value,
+        detected_style: settingsDom.detStyle.value,
+        show_detected:  settingsDom.showDet.checked,
+    };
+    const newKey = settingsDom.cvKey.value.trim();
+    if (newKey) payload.comicvine_api_key = newKey;
+    try {
+        await apiPost('/api/config/settings', payload);
+        settingsDom.saveStatus.textContent = 'Saved. New scans will use the new settings.';
+        settingsDom.cvKey.value = '';
+        // Apply overlay immediately so the open editor reflects the change
+        applyOverlayFromConfig({
+            crop_color:     payload.crop_color,
+            crop_style:     payload.crop_style,
+            detected_color: payload.detected_color,
+            detected_style: payload.detected_style,
+            show_detected:  payload.show_detected,
+        });
+        await loadSettings();
+    } catch (e) {
+        settingsDom.saveStatus.textContent = 'Save failed: ' + e.message;
+    }
+});
+
+settingsDom.btnResetDefaults.addEventListener('click', () => {
+    settingsDom.shiftX.value = settingsDefaults.x;
+    settingsDom.shiftY.value = settingsDefaults.y;
+    settingsDom.cropColor.value = overlayDefaults.crop_color;
+    settingsDom.cropStyle.value = overlayDefaults.crop_style;
+    settingsDom.detColor.value  = overlayDefaults.detected_color;
+    settingsDom.detStyle.value  = overlayDefaults.detected_style;
+    settingsDom.showDet.checked = !!overlayDefaults.show_detected;
+    applyOverlayFromConfig(overlayDefaults);
+});
+
+// Live preview: as user tweaks color/style inputs, update the open editor
+// without requiring a save.
+['input', 'change'].forEach(ev => {
+    settingsDom.cropColor.addEventListener(ev, () => applyOverlayFromConfig({ crop_color: settingsDom.cropColor.value }));
+    settingsDom.detColor.addEventListener(ev,  () => applyOverlayFromConfig({ detected_color: settingsDom.detColor.value }));
+});
+settingsDom.cropStyle.addEventListener('change', () => applyOverlayFromConfig({ crop_style: settingsDom.cropStyle.value }));
+settingsDom.detStyle.addEventListener('change',  () => applyOverlayFromConfig({ detected_style: settingsDom.detStyle.value }));
+settingsDom.showDet.addEventListener('change',   () => applyOverlayFromConfig({ show_detected: settingsDom.showDet.checked }));
+
+// ===== Directory pill (replaces the old input-dir text field) =====
+const dirPillDom = {
+    btn:        document.getElementById('dir-pill'),
+    label:      document.getElementById('dir-pill-label'),
+    meta:       document.getElementById('dir-pill-meta'),
+    menu:       document.getElementById('dir-pill-menu'),
+    mChange:    document.getElementById('dir-menu-change'),
+    mReload:    document.getElementById('dir-menu-reload'),
+    mClear:     document.getElementById('dir-menu-clear-cache'),
+};
+
+function basename(p) {
+    if (!p) return '';
+    const parts = p.replace(/\/+$/, '').split('/');
+    return parts[parts.length - 1] || p;
+}
+
+function updateDirPill() {
+    const dir = dom.inputDir.value.trim();
+    if (!state.sessionId || !dir) {
+        dirPillDom.label.textContent = 'Load scans…';
+        dirPillDom.meta.textContent = '';
+        dirPillDom.btn.classList.remove('active');
+        dirPillDom.btn.title = 'Click to select scan directory';
+    } else {
+        dirPillDom.label.textContent = basename(dir);
+        const n = state.pages.length;
+        dirPillDom.meta.textContent = `· ${n} ${n === 1 ? 'page' : 'pages'}`;
+        dirPillDom.btn.classList.add('active');
+        dirPillDom.btn.title = dir;
+    }
+}
+
+function closeDirMenu() { dirPillDom.menu.classList.add('hidden'); }
+
+dirPillDom.btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    // If nothing loaded yet, go straight to the picker
+    if (!state.sessionId) {
+        openFilePicker(dom.inputDir, 'Select Scan Directory');
+        return;
+    }
+    dirPillDom.menu.classList.toggle('hidden');
+});
+
+dirPillDom.mChange.addEventListener('click', () => {
+    closeDirMenu();
+    openFilePicker(dom.inputDir, 'Select Scan Directory');
+});
+
+dirPillDom.mReload.addEventListener('click', async () => {
+    closeDirMenu();
+    const dir = dom.inputDir.value.trim();
+    if (dir) await loadDirectory(dir);
+});
+
+dirPillDom.mClear.addEventListener('click', async () => {
+    closeDirMenu();
+    if (!state.sessionId) { alert('No session loaded.'); return; }
+    if (!confirm('Clear all saved detections and overrides? You will need to re-detect all pages.')) return;
+    try {
+        await apiPost(`/api/session/${state.sessionId}/clear-cache`);
+        state.detections = {};
+        state.overrides = {};
+        renderGrid();
+        if (state.currentPage !== null) loadDetectionOverlay(state.currentPage);
+    } catch (err) {
+        alert('Failed to clear cache: ' + err.message);
+    }
+});
+
+// Close menus when clicking outside
+document.addEventListener('click', (e) => {
+    if (!dirPillDom.menu.classList.contains('hidden')) {
+        if (!dirPillDom.menu.contains(e.target) && e.target !== dirPillDom.btn) {
+            closeDirMenu();
+        }
+    }
+    const pop = document.getElementById('process-popover');
+    if (pop && !pop.classList.contains('hidden')) {
+        if (!pop.contains(e.target) && !dom.btnProcessAll.contains(e.target)) {
+            pop.classList.add('hidden');
+        }
+    }
+});
+
+// Customize file-picker select: when the pill's picker returns, auto-load.
+// We patch the existing Select button to also fire loadDirectory when the
+// target is the input-dir field.
+(function patchFilePickerSelect() {
+    const btnSelect = document.getElementById('btn-fp-select');
+    btnSelect.addEventListener('click', () => {
+        // fpState.targetInput already had its value set by the original handler
+        if (fpState.targetInput === dom.inputDir) {
+            const dir = dom.inputDir.value.trim();
+            if (dir) loadDirectory(dir);
+        }
+    });
+})();
+
+// Hook renderGrid to also refresh the pill
+const _origRenderGrid = renderGrid;
+renderGrid = function () {
+    _origRenderGrid();
+    updateDirPill();
+};
+
+// ===== Process popover =====
+const processPopover = document.getElementById('process-popover');
+
+// Toggle popover when clicking the caret/label area. Primary click runs Process.
+// Implementation: Alt-click or right-click opens the popover; left-click runs.
+// But to match the ▾ affordance we detect whether the caret region was clicked.
+dom.btnProcessAll.addEventListener('click', (e) => {
+    // If the caret element was the target, just toggle the popover instead of running.
+    if (e.target.classList && e.target.classList.contains('btn-caret')) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        processPopover.classList.toggle('hidden');
+        return;
+    }
+    // If no output directory has been chosen yet, open the popover instead of running.
+    if (!dom.outputDir.value.trim()) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        processPopover.classList.remove('hidden');
+        setTimeout(() => dom.outputDir.focus(), 0);
+    }
+}, true); // capture phase so we can cancel before the original handler
+
+// Persist output dir / format / quality
+const LS_OUT = 'comicscans-output-dir';
+const LS_FMT = 'comicscans-format';
+const LS_QUA = 'comicscans-quality';
+try {
+    const savedOut = localStorage.getItem(LS_OUT);
+    if (savedOut) dom.outputDir.value = savedOut;
+    const savedFmt = localStorage.getItem(LS_FMT);
+    if (savedFmt) dom.formatSelect.value = savedFmt;
+    const savedQ = localStorage.getItem(LS_QUA);
+    if (savedQ) dom.qualityInput.value = savedQ;
+} catch (e) { /* ignore */ }
+
+dom.outputDir.addEventListener('change', () => { try { localStorage.setItem(LS_OUT, dom.outputDir.value.trim()); } catch (e) {} });
+dom.formatSelect.addEventListener('change', () => { try { localStorage.setItem(LS_FMT, dom.formatSelect.value); } catch (e) {} });
+dom.qualityInput.addEventListener('change', () => { try { localStorage.setItem(LS_QUA, dom.qualityInput.value); } catch (e) {} });
+
+// Restore last-used input directory if any
+try {
+    const savedIn = localStorage.getItem('comicscans-input-dir');
+    if (savedIn) dom.inputDir.value = savedIn;
+} catch (e) { /* ignore */ }
+
+// Paint the initial pill state
+updateDirPill();
 
 // ===== Initialization =====
 

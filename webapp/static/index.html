@@ -12,32 +12,83 @@
         <div class="topbar-row">
             <div class="topbar-left">
                 <span class="app-logo">ComicScans</span>
-                <div class="input-group">
-                    <input type="text" id="input-dir" placeholder="Scan directory..." spellcheck="false">
-                    <button id="btn-browse-input" class="btn-icon-sm" title="Browse...">&#128193;</button>
-                    <button id="btn-load" class="btn-sm" title="Load scans from directory">Load</button>
-                </div>
-            </div>
-            <div class="topbar-right">
-                <button id="btn-detect-all" class="btn-secondary btn-sm" title="Auto-detect page bounds">Detect All</button>
-                <button id="btn-clear-session" class="btn-secondary btn-sm" title="Clear saved session data">Clear Cache</button>
-                <div class="separator"></div>
-                <div class="input-group compact">
-                    <input type="text" id="output-dir" placeholder="Output directory..." spellcheck="false">
-                    <button id="btn-browse-output" class="btn-icon-sm" title="Browse...">&#128193;</button>
-                    <select id="format-select" title="Output format">
-                        <option value="jpg">JPG</option>
-                        <option value="webp">WebP</option>
-                    </select>
-                    <div class="quality-control">
-                        <span class="quality-label">Q</span>
-                        <input type="number" id="quality-input" value="92" min="1" max="100">
+
+                <!-- Active directory pill — shows current scan folder, click for dropdown -->
+                <div class="dir-pill-wrap">
+                    <button id="dir-pill" class="dir-pill" title="Scan directory">
+                        <span class="dir-pill-icon">&#128193;</span>
+                        <span class="dir-pill-label" id="dir-pill-label">Load scans&hellip;</span>
+                        <span class="dir-pill-meta" id="dir-pill-meta"></span>
+                        <span class="dir-pill-caret">&#9662;</span>
+                    </button>
+                    <div id="dir-pill-menu" class="pop-menu hidden">
+                        <button class="pop-menu-item" id="dir-menu-change">Change directory&hellip;</button>
+                        <button class="pop-menu-item" id="dir-menu-reload">Reload</button>
+                        <div class="pop-menu-sep"></div>
+                        <button class="pop-menu-item danger" id="dir-menu-clear-cache">Clear cache</button>
                     </div>
                 </div>
-                <button id="btn-process-all" class="btn-sm" title="Process all pages">Process</button>
-                <button id="btn-create-cbz" class="btn-sm" title="Create CBZ archive">CBZ</button>
-                <div class="separator"></div>
-                <select id="theme-select" title="Theme">
+                <!-- Hidden inputs preserved for existing code paths -->
+                <input type="text" id="input-dir" class="hidden-input" spellcheck="false">
+                <button id="btn-load" class="hidden-input" aria-hidden="true"></button>
+                <button id="btn-browse-input" class="hidden-input" aria-hidden="true"></button>
+                <button id="btn-clear-session" class="hidden-input" aria-hidden="true"></button>
+            </div>
+
+            <div class="topbar-right">
+                <button id="btn-detect-all" class="btn-primary btn-md" title="Auto-detect page bounds on every page">
+                    <span class="btn-ico">&#128269;</span><span class="btn-lbl">Detect</span>
+                </button>
+
+                <!-- Process button + popover for output dir / format / quality -->
+                <div class="pop-wrap">
+                    <button id="btn-process-all" class="btn-primary btn-md" title="Process all pages to output directory">
+                        <span class="btn-ico">&#9654;</span><span class="btn-lbl">Process</span>
+                        <span class="btn-caret">&#9662;</span>
+                    </button>
+                    <div id="process-popover" class="pop-panel hidden">
+                        <div class="pop-field">
+                            <label>Output directory</label>
+                            <div class="row-input">
+                                <input type="text" id="output-dir" placeholder="Where to save processed pages" spellcheck="false">
+                                <button id="btn-browse-output" class="btn-icon-sm" title="Browse...">&#128193;</button>
+                            </div>
+                        </div>
+                        <div class="pop-field-row">
+                            <div class="pop-field">
+                                <label>Format</label>
+                                <select id="format-select">
+                                    <option value="jpg">JPG</option>
+                                    <option value="webp">WebP</option>
+                                </select>
+                            </div>
+                            <div class="pop-field">
+                                <label>Quality</label>
+                                <input type="number" id="quality-input" value="92" min="1" max="100">
+                            </div>
+                        </div>
+                        <p class="hint">These settings are remembered for next time.</p>
+                    </div>
+                </div>
+
+                <button id="btn-create-cbz" class="btn-primary btn-md" title="Create CBZ archive with ComicVine metadata">
+                    <span class="btn-ico">&#128230;</span><span class="btn-lbl">CBZ</span>
+                </button>
+
+                <button id="btn-settings" class="btn-icon-sm btn-settings" title="Settings">&#9881;</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal-backdrop hidden">
+        <div class="modal-panel">
+            <button id="btn-settings-close" class="modal-close">&times;</button>
+            <h2>Settings</h2>
+
+            <div class="cbz-field">
+                <label>Theme</label>
+                <select id="theme-select">
                     <option value="dark">Dark</option>
                     <option value="light">Light</option>
                     <option value="solarized">Solarized</option>
@@ -45,8 +96,66 @@
                     <option value="dune">Dune</option>
                 </select>
             </div>
+
+            <div class="cbz-field">
+                <label>ComicVine API Key</label>
+                <div class="row-input">
+                    <input type="password" id="settings-cv-key" placeholder="Enter your ComicVine API key">
+                </div>
+                <p class="hint" id="settings-cv-status">No API key saved. <a href="https://comicvine.gamespot.com/api/" target="_blank">Get one here</a></p>
+            </div>
+
+            <div class="cbz-field">
+                <label class="section-label">Editor overlays</label>
+                <p class="hint">Colors and line styles for the two overlays drawn on each page in the editor.</p>
+                <div class="overlay-grid">
+                    <div class="overlay-row-label">
+                        <span class="overlay-swatch" id="settings-crop-swatch"></span>
+                        <span>Crop bounds</span>
+                    </div>
+                    <input type="color" id="settings-crop-color" title="Crop line color">
+                    <select id="settings-crop-style" title="Crop line style">
+                        <option value="solid">Solid</option>
+                        <option value="dashed">Dashed</option>
+                        <option value="dotted">Dotted</option>
+                    </select>
+
+                    <div class="overlay-row-label">
+                        <span class="overlay-swatch" id="settings-detected-swatch"></span>
+                        <span>Detected bounds</span>
+                    </div>
+                    <input type="color" id="settings-detected-color" title="Detected line color">
+                    <select id="settings-detected-style" title="Detected line style">
+                        <option value="solid">Solid</option>
+                        <option value="dashed">Dashed</option>
+                        <option value="dotted">Dotted</option>
+                    </select>
+                </div>
+                <label class="checkbox-row">
+                    <input type="checkbox" id="settings-show-detected">
+                    <span>Show detected bounds overlay</span>
+                </label>
+            </div>
+
+            <div class="cbz-field">
+                <label class="section-label">Inward crop shift</label>
+                <p class="hint">After auto-detection, trim corners inward by this many pixels. Defaults were measured from your override history.</p>
+                <div class="settings-grid">
+                    <label for="settings-shift-x">Horizontal (X)</label>
+                    <input type="number" id="settings-shift-x" step="1" min="-100" max="200">
+                    <label for="settings-shift-y">Vertical (Y)</label>
+                    <input type="number" id="settings-shift-y" step="1" min="-100" max="200">
+                </div>
+                <p class="hint" id="settings-shift-defaults"></p>
+            </div>
+
+            <div class="button-row" style="margin-top:12px">
+                <button id="btn-settings-save" class="btn-sm">Save</button>
+                <button id="btn-settings-reset-defaults" class="btn-secondary btn-sm">Reset to defaults</button>
+            </div>
+            <p id="settings-save-status" class="hint"></p>
         </div>
-    </header>
+    </div>
 
     <!-- Grid View -->
     <main id="grid-view">
@@ -95,6 +204,24 @@
                 <button id="btn-reset" class="btn-secondary btn-sm">Reset</button>
                 <button id="btn-preview" class="btn-secondary btn-sm">Preview</button>
                 <button id="btn-apply" class="btn-sm">Apply</button>
+            </div>
+
+            <div class="control-group">
+                <label class="section-label">Corner previews</label>
+                <div id="corner-previews">
+                    <div class="corner-preview" data-corner="0">
+                        <canvas></canvas><span class="cp-label">TL</span>
+                    </div>
+                    <div class="corner-preview" data-corner="1">
+                        <canvas></canvas><span class="cp-label">TR</span>
+                    </div>
+                    <div class="corner-preview" data-corner="3">
+                        <canvas></canvas><span class="cp-label">BL</span>
+                    </div>
+                    <div class="corner-preview" data-corner="2">
+                        <canvas></canvas><span class="cp-label">BR</span>
+                    </div>
+                </div>
             </div>
 
             <div class="control-group nav-row">

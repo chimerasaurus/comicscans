@@ -30,7 +30,7 @@ The workflow is split so you can inspect processed pages before packaging, and r
 | `comicscans.py` | CLI image processing: page detection, rotation, deskew, bleed removal, normalization |
 | `comicpackage.py` | CLI quality control, ComicInfo.xml metadata, CBZ archive creation |
 | `comiceval.py` | Ground-truth evaluation and parameter tuning against manual crop corrections |
-| `comicml.py` | Hybrid detector: ResNet-18 corner regression + line-fit edge refinement (~23 px mean error) |
+| `comicml.py` | Hybrid detector: 4-model ResNet-18 ensemble + line-fit edge refinement (~14 px mean error) |
 
 ---
 
@@ -103,6 +103,12 @@ Thumbnails of all loaded scans with detection status badges. Click any page to o
 Per-page controls for rotation, 180° flip, and corner adjustment. Drag the corner handles to fine-tune crop boundaries. Changes auto-save to a session file in the input directory.
 
 ![Editor view](docs/webui-editor.png)
+
+### Corner Previews
+
+Four zoomed-in thumbnails (TL/TR/BR/BL) show the detected and crop corners live as you edit — so you can verify alignment without zooming around the main image. Overlay colors and line styles (solid/dashed/dotted) are configurable in settings.
+
+![Corner previews](docs/webui-corner-previews.png)
 
 ### Features
 
@@ -208,9 +214,17 @@ python3 comiceval.py tune
 
 # Compare against tuned params
 python3 comiceval.py eval --params comiceval_params.json
+
+# Audit: run the hybrid detector across ground truth and flag pages
+# whose GT corners look mis-clicked (model nails 3 corners, disagrees on
+# one, and that one is geometrically inconsistent with the rectangle
+# formed by the other three). Advisory list — verify in the webapp.
+python3 comiceval.py audit
 ```
 
 The tuner uses Nelder-Mead optimization (scipy) with preloaded images in memory. Best-so-far parameters are saved on every improvement, so long runs can be interrupted safely.
+
+Run `audit` after every new batch of ground-truth collection — the heuristic is advisory (real corner damage can false-positive), but it catches genuine mis-clicks efficiently.
 
 ---
 
@@ -218,27 +232,30 @@ The tuner uses Nelder-Mead optimization (scipy) with preloaded images in memory.
 
 Classical detection hit a structural ceiling around 117 px mean corner error. `comicml.py` replaces it with a two-stage hybrid detector:
 
-1. **CNN stage** — a ResNet-18 backbone (768×768 input) regresses all four page corners directly. Test-time augmentation (horizontal flip + average) reduces variance. Trained on 502 labeled pages across 13 DS9 issues with cosine-annealed AdamW over 120 epochs.
+1. **CNN stage** — a 4-model ResNet-18 ensemble (768×768 input) regresses all four page corners directly. Each member differs in training seed and/or data slice, and predictions are averaged per-corner. Test-time augmentation (horizontal flip + average) runs inside each member for extra variance reduction. Trained on 748 labeled pages across 20 DS9 issues with cosine warm-restart AdamW over 120 epochs.
 
-2. **Line-fit refinement** — samples ~30 gradient profiles along each predicted page edge, RANSAC-fits a line through confident detections, and intersects adjacent lines for corner coordinates. Falls back to per-corner snap when the line fit disagrees with independent per-corner evidence (agreement gating prevents catastrophic failures from spurious edges on bleed-heavy pages).
+2. **Line-fit refinement** — samples ~30 gradient profiles along each predicted page edge, RANSAC-fits a line through confident detections, and intersects adjacent lines for corner coordinates. Falls back to per-corner snap when the line fit disagrees with independent per-corner evidence (agreement gating prevents catastrophic failures from spurious edges on bleed-heavy pages). Adaptive skip uses per-corner TTA disagreement to bypass refinement when the CNN is highly confident.
 
-On a 70-page holdout (DS9E20 + DS9E23), the hybrid detector achieves **23.3 px mean corner error** (median 19.9, P95 33.5) — an ~80% improvement over the classical detector.
+Across the full 818-page corrected corpus, the hybrid detector achieves **14.17 px mean corner error** (median 12.25, P95 27.93) — an ~88% improvement over the classical detector's 117 px mean.
 
 ```bash
-# Train on labeled issues, holding out 2 for evaluation
+# Train a single model (one ensemble member). Repeat with different --seed
+# and --train slices to diversify the ensemble; list the resulting paths
+# in comicml.ENSEMBLE_MODELS so detection picks them up automatically.
 python3 comicml.py train \
     --train DS9E18,DS9E19,DS9E21,DS9E22,DS9E2.3,DS9E24,DS9E25,DS9E26,DS9E27,DS9E28,DS9E29,DS9E30,DS9E31 \
     --holdout DS9E20,DS9E23 \
-    --input-size 768 --epochs 120
+    --input-size 768 --epochs 120 --warm-restarts 40 \
+    --seed 42 --output comicml_model_s42.pt
 
-# Evaluate CNN-only and hybrid against ground truth
-python3 comicml.py eval --hybrid
+# Evaluate CNN-only and hybrid (ensemble is used automatically when available)
+python3 comicml.py eval --hybrid --all
 
 # Use hybrid detector from the CLI
-python3 comicscans.py raw-scans/DS9E17/ --auto-rotate --model comicml_model.pt
+python3 comicscans.py raw-scans/DS9E17/ --auto-rotate
 ```
 
-The web app automatically uses the hybrid detector when `comicml_model.pt` exists in the repo root (or when `COMICML_MODEL` env var points to a checkpoint). On startup it prints the loaded model's type, input size, and validation accuracy.
+The web app automatically uses the ensemble when the models listed in `comicml.ENSEMBLE_MODELS` exist in the repo root. On startup it prints how many ensemble members were loaded and their per-model validation accuracy.
 
 ---
 

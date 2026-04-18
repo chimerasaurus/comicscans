@@ -581,6 +581,137 @@ def export_for_webapp(entries: list[dict]):
 # CLI
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Audit: flag likely-miscllicked GT corners
+# ---------------------------------------------------------------------------
+
+def audit_ground_truth(top_n: int = 20,
+                       bug_displacement_thresh: float = 40.0,
+                       bug_model_err_thresh: float = 60.0):
+    """Run the production hybrid detector on every corrected GT entry, rank
+    pages by mean corner error, and flag pages where the worst corner looks
+    like a mis-click rather than a real model failure.
+
+    Heuristic: for the single worst corner on each page, compare the GT
+    position to where a perfect rectangle (built from the other three GT
+    corners) would place it. If:
+      - the model's error on that corner is large (>bug_model_err_thresh), AND
+      - the GT corner is geometrically inconsistent with the other three
+        (>bug_displacement_thresh from the rectangle-reconstructed point),
+    then the GT is more likely wrong than the model. Flag for human review.
+
+    Real page-corner damage (torn, curled) can trigger false positives. The
+    flagged list is advisory, not automatic — always eyeball each one in
+    the webapp before editing.
+    """
+    # Defer these imports: torch/cv2 and the ensemble loader are only needed
+    # for audit, not for collect/eval/tune.
+    import cv2 as _cv2
+    import numpy as _np
+    try:
+        import comicml as _cm
+    except ImportError:
+        print("audit requires comicml.py (CNN/ensemble detector) — not found.")
+        sys.exit(1)
+    import torch as _torch
+
+    entries = [e for e in load_ground_truth() if e["has_correction"]]
+    if not entries:
+        print("No corrected GT entries found. Run `collect` first.")
+        sys.exit(1)
+
+    ensemble, device = _cm._get_cached_ensemble()
+    if not ensemble:
+        print("No ensemble models available. Check comicml.ENSEMBLE_MODELS.")
+        sys.exit(1)
+    print(f"Loaded ensemble: {len(ensemble)} models. Auditing {len(entries)} pages…")
+
+    _IX = [+1, -1, -1, +1]
+    _IY = [+1, +1, -1, -1]
+    SHIFT_X, SHIFT_Y = 13.0, 11.0
+
+    rows = []
+    for i, e in enumerate(entries):
+        img = _cv2.imread(e["filepath"])
+        if img is None:
+            continue
+        if e["gt_rotate180"]:
+            img = _cv2.rotate(img, _cv2.ROTATE_180)
+        cnn, dis = _cm.predict_corners_ensemble(ensemble, device, img)
+        hyb = _cm.refine_corners_linefit(img, cnn, dpi=e.get("dpi", 600),
+                                         tta_disagreements=dis)
+        hyb = [[p[0] + SHIFT_X * _IX[j], p[1] + SHIFT_Y * _IY[j]]
+               for j, p in enumerate(hyb)]
+        gt = e["gt_corners"]
+        per_corner = [float(_np.hypot(p[0]-g[0], p[1]-g[1]))
+                      for p, g in zip(hyb, gt)]
+        rows.append({
+            "scan": e["scan_dir"].rsplit("/", 1)[-1],
+            "page": e["page_index"],
+            "file": Path(e["filepath"]).name,
+            "filepath": e["filepath"],
+            "mean": float(_np.mean(per_corner)),
+            "max": float(max(per_corner)),
+            "per_corner": per_corner,
+            "gt": gt,
+        })
+        if (i + 1) % 100 == 0:
+            print(f"  {i+1}/{len(entries)}")
+
+    # Reconstruction heuristic: worst-corner position is (other_side_x,
+    # other_side_y). TL=0, TR=1, BR=2, BL=3.
+    RECON = {0: (3, 1), 1: (2, 0), 2: (1, 3), 3: (0, 2)}
+    NAMES = ["TL", "TR", "BR", "BL"]
+
+    flagged = []
+    for r in rows:
+        bi = int(_np.argmax(r["per_corner"]))
+        model_err = r["per_corner"][bi]
+        xi, yi = RECON[bi]
+        gt = r["gt"]
+        recon = (gt[xi][0], gt[yi][1])
+        recon_err = float(_np.hypot(gt[bi][0] - recon[0], gt[bi][1] - recon[1]))
+        if recon_err > bug_displacement_thresh and model_err > bug_model_err_thresh:
+            flagged.append({
+                "scan": r["scan"], "page": r["page"], "file": r["file"],
+                "filepath": r["filepath"], "corner": NAMES[bi],
+                "model_err": model_err, "displacement": recon_err,
+            })
+
+    flagged.sort(key=lambda r: -r["model_err"])
+
+    # Overall stats (mirrors the shape of `evaluate`)
+    means = _np.array([r["mean"] for r in rows])
+    print(f"\n=== Hybrid detector on {len(rows)} pages ===")
+    print(f"  Mean   corner err: {means.mean():7.2f} px")
+    print(f"  Median corner err: {_np.median(means):7.2f} px")
+    print(f"  P95    corner err: {_np.percentile(means, 95):7.2f} px")
+    print(f"  Max    corner err: {means.max():7.2f} px")
+
+    rows_sorted = sorted(rows, key=lambda r: -r["mean"])
+    print(f"\n=== Top {top_n} worst pages by mean corner error ===")
+    print(f"{'#':<3} {'scan':<20} {'pg':<4} {'file':<18} {'mean':>7} {'max':>7}")
+    print("-" * 70)
+    for k, r in enumerate(rows_sorted[:top_n]):
+        print(f"{k+1:<3} {r['scan']:<20} {r['page']:<4} {r['file']:<18} "
+              f"{r['mean']:7.2f} {r['max']:7.2f}")
+
+    print(f"\n=== {len(flagged)} pages flagged as likely GT bugs ===")
+    print(f"   (worst corner >{bug_model_err_thresh:.0f}px from model AND "
+          f">{bug_displacement_thresh:.0f}px from rectangle-reconstructed position)\n")
+    if flagged:
+        print(f"{'#':<3} {'scan':<20} {'pg':<4} {'file':<18} {'corner':<7} {'disp':>7}")
+        print("-" * 70)
+        for k, r in enumerate(flagged):
+            print(f"{k+1:<3} {r['scan']:<20} {r['page']:<4} {r['file']:<18} "
+                  f"{r['corner']:<7} {r['displacement']:7.1f}")
+        print("\nReview each in the webapp. If the flagged corner marker is clearly "
+              "off the real page corner, drag it to the right spot and save.")
+        print("Then re-run: comiceval.py collect <scans> && comiceval.py audit")
+    else:
+        print("No likely-GT-bug pages found.")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Ground truth evaluation and parameter tuning for comicscans detection."
@@ -600,6 +731,16 @@ def main():
 
     # summary
     sub.add_parser("summary", help="Print ground truth summary")
+
+    # audit
+    p_audit = sub.add_parser("audit",
+        help="Run hybrid detector and flag pages where ground truth likely has a mis-clicked corner")
+    p_audit.add_argument("--top", type=int, default=20,
+                         help="Show top-N pages by mean corner error (default 20)")
+    p_audit.add_argument("--bug-displacement", type=float, default=40.0,
+                         help="Min geometric inconsistency (px) to flag as likely GT bug (default 40)")
+    p_audit.add_argument("--bug-model-err", type=float, default=60.0,
+                         help="Min model-vs-GT error (px) required to flag as GT bug (default 60)")
 
     args = parser.parse_args()
 
@@ -642,6 +783,13 @@ def main():
     elif args.command == "summary":
         entries = load_ground_truth()
         export_for_webapp(entries)
+
+    elif args.command == "audit":
+        audit_ground_truth(
+            top_n=args.top,
+            bug_displacement_thresh=args.bug_displacement,
+            bug_model_err_thresh=args.bug_model_err,
+        )
 
     else:
         parser.print_help()
