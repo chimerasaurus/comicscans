@@ -304,7 +304,7 @@ def _bounds_to_original_corners(bounds: dict, orig_w: int, orig_h: int) -> list:
         # Translate to original image center
         ox = rx + orig_w / 2.0
         oy = ry + orig_h / 2.0
-        original_corners.append([round(ox, 1), round(oy, 1)])
+        original_corners.append([round(float(ox), 1), round(float(oy), 1)])
 
     return original_corners
 
@@ -489,19 +489,19 @@ def detect_page(sid: str, page_index: int):
     corners = _bounds_to_original_corners(shifted_bounds, orig_w, orig_h)
 
     result = {
-        "corners": corners,                   # crop bounds (draggable, used at crop time)
-        "detected_corners": detected_corners, # raw detected edges (informational)
-        "inward_shift": {"x": sx, "y": sy},
-        "rotation": bounds["angle"],
-        "rotate180": rotate180,
+        "corners": [[float(x), float(y)] for x, y in corners],
+        "detected_corners": [[float(x), float(y)] for x, y in detected_corners],
+        "inward_shift": {"x": float(sx), "y": float(sy)},
+        "rotation": float(bounds["angle"]),
+        "rotate180": bool(rotate180),
         "bleed_method": bounds.get("bleed_method"),
-        "dpi": dpi,
+        "dpi": int(dpi),
         "original_bounds": {
-            "top": bounds["top"],
-            "bottom": bounds["bottom"],
-            "left": bounds["left"],
-            "right": bounds["right"],
-            "angle": bounds["angle"],
+            "top":    float(bounds["top"]),
+            "bottom": float(bounds["bottom"]),
+            "left":   float(bounds["left"]),
+            "right":  float(bounds["right"]),
+            "angle":  float(bounds["angle"]),
         },
     }
 

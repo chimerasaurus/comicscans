@@ -1,30 +1,18 @@
 #!/usr/bin/env python3
 """
-comicml.py — CNN-based page corner regression.
+comicml.py — CNN inference for comic page corner detection.
 
-Trains a ResNet-18 backbone to predict 4 corners (TL, TR, BR, BL) for each
-scan, using the ground truth collected in ground_truth.json. Replaces the
-rule-based detector for pages where it hits its accuracy ceiling.
+Runtime inference only. Training, evaluation, and the training dashboard
+live in the separate comicml project at /Users/james/Documents/dev/comicml.
 
 Usage:
-    # Train on 4 issues, hold out 2 for eval
-    python3 comicml.py train \\
-        --train DS9E18,DS9E19,DS9E21,DS9E22 \\
-        --holdout DS9E20,DS9E23 \\
-        --epochs 60
-
-    # Evaluate a trained model
-    python3 comicml.py eval --model comicml_model_reg_768_605pg.pt
-
-    # Predict corners for a single image (for inspection)
-    python3 comicml.py predict path/to/Scan.jpeg --model comicml_model_reg_768_605pg.pt
+    # Predict corners for a single image (for spot-checking)
+    python3 comicml.py predict path/to/Scan.jpeg --model comicml_model_reg_768_1420pg_e280.pt
 """
 
 import argparse
 import json
-import random
 import sys
-import time
 from pathlib import Path
 
 import cv2
@@ -32,22 +20,19 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, Dataset
 from torchvision import models, transforms
 
-GROUND_TRUTH_FILE = Path(__file__).parent / "ground_truth.json"
-MODEL_FILE = Path(__file__).parent / "comicml_model_reg_768_605pg.pt"
+MODEL_FILE = Path(__file__).parent / "comicml_model_reg_768_1420pg_e280.pt"
 
-# Production ensemble: hybrid eval on DS9E20+E23 holdout (70 pages) shows this
-# 4-model average drops the max corner error from 50.9 → 42.6 px (−16%) vs the
-# single production model, with essentially unchanged mean. Each member
-# contributes data or seed diversity; s256 is excluded (individually too weak).
+# Production ensemble: hybrid eval on DS9E20+E23+DS9_1996_5 holdout. If an
+# ensemble_config.json exists alongside this file it is read first and its
+# "models" list replaces this default — use the training dashboard "Add to
+# ensemble" button to update it without touching this file.
 # Set ENSEMBLE_MODELS = [] (or leave files missing) to fall back to single-model.
 ENSEMBLE_MODELS = [
-    "comicml_model_reg_768_605pg.pt",   # seed 137, 605 pages  (= MODEL_FILE)
-    "comicml_model_reg_768_693pg.pt",   # seed 137, 693 pages
-    "comicml_model_s42.pt",             # seed 42,  502 pages
-    "comicml_model_s137.pt",            # seed 137, 502 pages
+    "comicml_model_reg_768_956pg.pt",        # seed 137, 956 pages
+    "comicml_model_reg_768_1000pg.pt",       # seed 137, 1000 pages
+    "comicml_model_reg_768_1420pg_e280.pt",  # seed 137, 1420 pages, 280 epochs (champion)
 ]
 
 # Default input resolution for the CNN. 512 gives each feature cell ~10 orig
@@ -61,405 +46,6 @@ IMAGENET_MEAN = [0.485, 0.456, 0.406]
 IMAGENET_STD = [0.229, 0.224, 0.225]
 
 
-# ---------------------------------------------------------------------------
-# Dataset
-# ---------------------------------------------------------------------------
-
-def _load_entries():
-    if not GROUND_TRUTH_FILE.exists():
-        print(f"Missing {GROUND_TRUTH_FILE}. Run: python3 comiceval.py collect raw-scans/")
-        sys.exit(1)
-    return json.loads(GROUND_TRUTH_FILE.read_text())
-
-
-class PageCornerDataset(Dataset):
-    """Loads (image, 8-dim normalized corner target) pairs.
-
-    Image is resized to INPUT_SIZE × INPUT_SIZE (ignoring aspect). Corners are
-    normalized to [0, 1] using original image dims — so the network learns
-    position as a fraction of each axis, independent of the aspect-distort
-    introduced by resizing.
-
-    Augmentation at train time: horizontal flip (corners swap accordingly),
-    small brightness/contrast jitter. No rotations — the scanner pipeline
-    already deskews before the network would see the image in production.
-    """
-
-    def __init__(self, entries, augment=False, input_size=INPUT_SIZE):
-        self.entries = entries
-        self.augment = augment
-        self.input_size = input_size
-        self.normalize = transforms.Normalize(IMAGENET_MEAN, IMAGENET_STD)
-
-    def __len__(self):
-        return len(self.entries)
-
-    def __getitem__(self, idx):
-        entry = self.entries[idx]
-        img = cv2.imread(entry["filepath"])
-        if img is None:
-            raise RuntimeError(f"Could not read {entry['filepath']}")
-        if entry["gt_rotate180"]:
-            img = cv2.rotate(img, cv2.ROTATE_180)
-
-        H, W = img.shape[:2]
-        corners = np.array(entry["gt_corners"], dtype=np.float32)  # [4, 2] = TL, TR, BR, BL
-
-        # Normalize corners to [0, 1] in original image coords
-        norm = corners.copy()
-        norm[:, 0] /= W
-        norm[:, 1] /= H
-
-        # Resize image (aspect-distorting) and convert BGR → RGB
-        img = cv2.resize(img, (self.input_size, self.input_size), interpolation=cv2.INTER_AREA)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
-        if self.augment:
-            # Horizontal flip: mirror image and remap corners (TL<->TR, BL<->BR)
-            if random.random() < 0.5:
-                img = np.ascontiguousarray(img[:, ::-1])
-                flipped = norm.copy()
-                flipped[:, 0] = 1.0 - flipped[:, 0]
-                # Reorder: original [TL, TR, BR, BL] → after mirror x, roles
-                # swap horizontally: [TR', TL', BL', BR']. Re-index to keep
-                # the TL/TR/BR/BL convention:
-                norm = np.array([flipped[1], flipped[0], flipped[3], flipped[2]])
-
-            # Small affine shift/scale (simulates placement variation on scanner)
-            if random.random() < 0.5:
-                sx = 1.0 + (random.random() - 0.5) * 0.06   # 0.97–1.03
-                sy = 1.0 + (random.random() - 0.5) * 0.06
-                tx = (random.random() - 0.5) * 0.04          # ±2% shift
-                ty = (random.random() - 0.5) * 0.04
-                h, w = img.shape[:2]
-                M = np.array([[sx, 0, tx * w], [0, sy, ty * h]], dtype=np.float32)
-                img = cv2.warpAffine(img, M, (w, h),
-                                     borderMode=cv2.BORDER_REFLECT_101)
-                # Transform normalized corners accordingly
-                norm[:, 0] = norm[:, 0] * sx + tx
-                norm[:, 1] = norm[:, 1] * sy + ty
-                norm = np.clip(norm, 0.0, 1.0)
-
-            # Brightness/contrast jitter (small)
-            if random.random() < 0.5:
-                alpha = 1.0 + (random.random() - 0.5) * 0.2  # 0.9–1.1
-                beta = (random.random() - 0.5) * 20          # -10..+10
-                img = np.clip(img.astype(np.float32) * alpha + beta, 0, 255).astype(np.uint8)
-
-            # Color jitter: saturation and hue in HSV
-            if random.random() < 0.3:
-                hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV).astype(np.float32)
-                hsv[:, :, 1] *= 1.0 + (random.random() - 0.5) * 0.4  # sat ±20%
-                hsv[:, :, 0] += (random.random() - 0.5) * 10          # hue ±5
-                hsv = np.clip(hsv, 0, 255).astype(np.uint8)
-                hsv[:, :, 0] = hsv[:, :, 0] % 180
-                img = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
-
-            # Gaussian noise (simulates scanner sensor noise)
-            if random.random() < 0.3:
-                noise = np.random.normal(0, 5, img.shape).astype(np.float32)
-                img = np.clip(img.astype(np.float32) + noise, 0, 255).astype(np.uint8)
-
-            # Random erasing / cutout (forces model to use all edges)
-            if random.random() < 0.3:
-                h, w = img.shape[:2]
-                eh = random.randint(h // 10, h // 4)
-                ew = random.randint(w // 10, w // 4)
-                ey = random.randint(0, h - eh)
-                ex = random.randint(0, w - ew)
-                img[ey:ey+eh, ex:ex+ew] = np.random.randint(0, 255, (eh, ew, 3), dtype=np.uint8)
-
-        # To float tensor [C, H, W] in [0, 1], then ImageNet-normalize
-        img_t = torch.from_numpy(img).permute(2, 0, 1).float() / 255.0
-        img_t = self.normalize(img_t)
-
-        target = torch.from_numpy(norm.flatten()).float()  # [8]
-        meta = {
-            "filepath": entry["filepath"],
-            "orig_w": W,
-            "orig_h": H,
-            "scan_dir": entry["scan_dir"],
-            "page_index": entry["page_index"],
-        }
-        return img_t, target, meta
-
-
-# ---------------------------------------------------------------------------
-# Model
-# ---------------------------------------------------------------------------
-
-class CornerRegressor(nn.Module):
-    """ResNet-18 backbone + linear head predicting 8 normalized corner coords."""
-
-    def __init__(self, pretrained=True):
-        super().__init__()
-        weights = models.ResNet18_Weights.DEFAULT if pretrained else None
-        backbone = models.resnet18(weights=weights)
-        # Replace classification head with 8-dim regression head
-        in_features = backbone.fc.in_features
-        backbone.fc = nn.Linear(in_features, 8)
-        self.net = backbone
-
-    def forward(self, x):
-        # Output is in [0, 1]-ish range after sigmoid to keep predictions bounded.
-        return torch.sigmoid(self.net(x))
-
-
-class CornerHeatmapRegressor(nn.Module):
-    """ResNet-18 encoder + deconv decoder predicting a 4-channel corner heatmap.
-
-    At inference, coordinates are extracted via soft-argmax for sub-pixel
-    accuracy. The deconv decoder upsamples by 8× (stride 32 → stride 4),
-    producing a heatmap at input_size / 4 resolution.
-    """
-
-    def __init__(self, pretrained=True):
-        super().__init__()
-        weights = models.ResNet18_Weights.DEFAULT if pretrained else None
-        backbone = models.resnet18(weights=weights)
-        # Keep everything up to layer4 (output: [B, 512, H/32, W/32])
-        self.encoder = nn.Sequential(*list(backbone.children())[:-2])
-        # Three transposed-conv blocks upsample ×8 (stride 32 → stride 4)
-        self.decoder = nn.Sequential(
-            nn.ConvTranspose2d(512, 256, 4, stride=2, padding=1, bias=False),
-            nn.BatchNorm2d(256), nn.ReLU(inplace=True),
-            nn.ConvTranspose2d(256, 128, 4, stride=2, padding=1, bias=False),
-            nn.BatchNorm2d(128), nn.ReLU(inplace=True),
-            nn.ConvTranspose2d(128, 64, 4, stride=2, padding=1, bias=False),
-            nn.BatchNorm2d(64), nn.ReLU(inplace=True),
-        )
-        # 1×1 conv to 4 channels (one heatmap per corner)
-        self.final = nn.Conv2d(64, 4, kernel_size=1)
-
-    def forward(self, x):
-        feats = self.encoder(x)
-        up = self.decoder(feats)
-        return self.final(up)  # [B, 4, H/4, W/4] — raw logits
-
-
-def _make_heatmap_targets(corners_norm, hmap_size, sigma=2.0, device=None):
-    """Build Gaussian heatmap targets from normalized corners.
-
-    corners_norm: [B, 8] in [0, 1]. Returns [B, 4, H, W] float tensor.
-    sigma is in heatmap-pixels; 2.0 at 192×192 covers ~5 px FWHM ≈ 20 orig-px.
-    """
-    B = corners_norm.shape[0]
-    H = W = hmap_size
-    coords = corners_norm.view(B, 4, 2)
-    px = coords[..., 0] * (W - 1)  # [B, 4]
-    py = coords[..., 1] * (H - 1)
-    yy = torch.arange(H, device=device, dtype=torch.float32).view(1, 1, H, 1)
-    xx = torch.arange(W, device=device, dtype=torch.float32).view(1, 1, 1, W)
-    # Broadcast to [B, 4, H, W]
-    px = px.view(B, 4, 1, 1)
-    py = py.view(B, 4, 1, 1)
-    return torch.exp(-((xx - px) ** 2 + (yy - py) ** 2) / (2 * sigma ** 2))
-
-
-def _soft_argmax_2d(heatmap, temperature=1.0):
-    """Differentiable sub-pixel argmax.
-
-    heatmap: [B, C, H, W] logits. Returns [B, C, 2] normalized coords in [0, 1]
-    as (x, y).
-    """
-    B, C, H, W = heatmap.shape
-    flat = heatmap.view(B, C, -1) / temperature
-    probs = torch.softmax(flat, dim=-1).view(B, C, H, W)
-    xs = torch.arange(W, device=heatmap.device, dtype=heatmap.dtype).view(1, 1, 1, W) / (W - 1)
-    ys = torch.arange(H, device=heatmap.device, dtype=heatmap.dtype).view(1, 1, H, 1) / (H - 1)
-    x = (probs * xs).sum(dim=(2, 3))
-    y = (probs * ys).sum(dim=(2, 3))
-    return torch.stack([x, y], dim=-1)  # [B, C, 2]
-
-
-# ---------------------------------------------------------------------------
-# Training
-# ---------------------------------------------------------------------------
-
-def _split_entries(entries, train_dirs, holdout_dirs):
-    """Split ground truth entries into train and holdout sets by scan_dir."""
-    train, holdout = [], []
-    train_set = set(train_dirs)
-    holdout_set = set(holdout_dirs)
-    for e in entries:
-        name = e["scan_dir"].rsplit("/", 1)[-1]
-        if name in train_set:
-            train.append(e)
-        elif name in holdout_set:
-            holdout.append(e)
-    return train, holdout
-
-
-def _corner_px_error(pred_norm, target_norm, orig_w, orig_h):
-    """Mean corner distance in original-image pixels for a batch.
-
-    pred_norm, target_norm: [B, 8] normalized. orig_w, orig_h: [B] ints.
-    """
-    B = pred_norm.shape[0]
-    pred = pred_norm.view(B, 4, 2)
-    tgt = target_norm.view(B, 4, 2)
-    scale = torch.stack([orig_w.float(), orig_h.float()], dim=1).view(B, 1, 2)
-    pred_px = pred * scale
-    tgt_px = tgt * scale
-    d = torch.sqrt(((pred_px - tgt_px) ** 2).sum(dim=2))  # [B, 4]
-    return d.mean().item(), d  # scalar mean + per-corner distances
-
-
-def train(args):
-    device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
-    print(f"Device: {device}")
-
-    output_path = Path(args.output) if args.output else MODEL_FILE
-
-    if args.seed is not None:
-        random.seed(args.seed)
-        np.random.seed(args.seed)
-        torch.manual_seed(args.seed)
-        print(f"Random seed: {args.seed}")
-
-    entries = _load_entries()
-    train_dirs = args.train.split(",")
-    holdout_dirs = args.holdout.split(",")
-    train_entries, holdout_entries = _split_entries(entries, train_dirs, holdout_dirs)
-
-    # Drop anything without a correction so we train only on labeled data
-    train_entries = [e for e in train_entries if e["has_correction"]]
-    holdout_entries = [e for e in holdout_entries if e["has_correction"]]
-
-    print(f"Train: {len(train_entries)} pages from {train_dirs}")
-    print(f"Holdout: {len(holdout_entries)} pages from {holdout_dirs}")
-
-    input_size = args.input_size
-    print(f"Input resolution: {input_size}×{input_size}")
-    train_ds = PageCornerDataset(train_entries, augment=True, input_size=input_size)
-    val_ds = PageCornerDataset(holdout_entries, augment=False, input_size=input_size)
-
-    train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True,
-                              num_workers=args.num_workers, pin_memory=False)
-    val_loader = DataLoader(val_ds, batch_size=args.batch_size, shuffle=False,
-                            num_workers=args.num_workers, pin_memory=False)
-
-    model_type = "heatmap" if args.heatmap else "regression"
-    print(f"Model type: {model_type}")
-    if model_type == "heatmap":
-        model = CornerHeatmapRegressor(pretrained=True).to(device)
-        hmap_size = input_size // 4  # stride-4 heatmap
-        print(f"Heatmap resolution: {hmap_size}×{hmap_size}  σ={args.hmap_sigma}")
-    else:
-        model = CornerRegressor(pretrained=True).to(device)
-        hmap_size = None
-
-    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
-    if args.warm_restarts > 0:
-        # Cosine annealing with warm restarts: LR resets every T_0 epochs,
-        # each subsequent cycle is T_mult × longer. Explores multiple minima.
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
-            optimizer, T_0=args.warm_restarts, T_mult=2)
-        print(f"LR schedule: cosine warm restarts T_0={args.warm_restarts} T_mult=2")
-    else:
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
-        print(f"LR schedule: cosine annealing T_max={args.epochs}")
-    l1_loss = nn.SmoothL1Loss()
-    mse_loss = nn.MSELoss()
-
-    def forward_loss(imgs, targets):
-        """Returns (loss, pred_coords_norm [B,8]).
-
-        Heatmap path uses DSNT-style supervision: coord L1 loss on soft-argmax +
-        a small MSE heatmap regularizer toward a Gaussian target, which keeps
-        the predicted distribution peaked rather than diffuse. Without the
-        regularizer the network can satisfy the coord loss with multi-modal
-        distributions that centroid to the right point.
-        """
-        out = model(imgs)
-        if model_type == "heatmap":
-            coords = _soft_argmax_2d(out).view(imgs.size(0), 8)
-            coord_loss = l1_loss(coords, targets)
-            target_hmap = _make_heatmap_targets(
-                targets, hmap_size, sigma=args.hmap_sigma, device=device)
-            # Normalize logits to a probability distribution for the reg term
-            probs = torch.softmax(out.view(out.size(0), 4, -1), dim=-1).view_as(out)
-            # Scale target so it sums to 1 per channel (JS-flavored regularizer)
-            tgt_sum = target_hmap.sum(dim=(2, 3), keepdim=True).clamp(min=1e-8)
-            target_probs = target_hmap / tgt_sum
-            reg = mse_loss(probs, target_probs)
-            loss = coord_loss + args.hmap_reg * reg
-        else:
-            loss = l1_loss(out, targets)
-            coords = out
-        return loss, coords
-
-    best_val_px = float("inf")
-    history = []
-
-    for epoch in range(args.epochs):
-        model.train()
-        t0 = time.time()
-        train_loss = 0.0
-        train_px_sum = 0.0
-        train_n = 0
-        for imgs, targets, meta in train_loader:
-            imgs = imgs.to(device)
-            targets = targets.to(device)
-            loss, coords = forward_loss(imgs, targets)
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            train_loss += loss.item() * imgs.size(0)
-            orig_w = meta["orig_w"].to(device)
-            orig_h = meta["orig_h"].to(device)
-            px, _ = _corner_px_error(coords.detach(), targets, orig_w, orig_h)
-            train_px_sum += px * imgs.size(0)
-            train_n += imgs.size(0)
-        scheduler.step()
-
-        # Validation
-        model.eval()
-        val_px_sum = 0.0
-        val_n = 0
-        with torch.no_grad():
-            for imgs, targets, meta in val_loader:
-                imgs = imgs.to(device)
-                targets = targets.to(device)
-                _, coords = forward_loss(imgs, targets)
-                orig_w = torch.tensor(meta["orig_w"]).to(device)
-                orig_h = torch.tensor(meta["orig_h"]).to(device)
-                px, _ = _corner_px_error(coords, targets, orig_w, orig_h)
-                val_px_sum += px * imgs.size(0)
-                val_n += imgs.size(0)
-
-        train_px = train_px_sum / max(train_n, 1)
-        val_px = val_px_sum / max(val_n, 1)
-        elapsed = time.time() - t0
-        marker = ""
-        if val_px < best_val_px:
-            best_val_px = val_px
-            marker = " *"
-            torch.save({
-                "model_state": model.state_dict(),
-                "input_size": input_size,
-                "model_type": model_type,
-                "hmap_sigma": args.hmap_sigma,
-                "epoch": epoch,
-                "val_px": val_px,
-                "train_dirs": train_dirs,
-                "holdout_dirs": holdout_dirs,
-                "seed": args.seed,
-            }, output_path)
-
-        print(f"epoch {epoch+1:>3d}/{args.epochs}  "
-              f"train_loss={train_loss/max(train_n,1):.5f}  "
-              f"train_px={train_px:7.2f}  val_px={val_px:7.2f}  "
-              f"({elapsed:.1f}s){marker}", flush=True)
-        history.append((epoch, train_px, val_px))
-
-    print(f"\nBest holdout mean corner error: {best_val_px:.2f} px")
-    print(f"Model saved to {output_path}")
-
-
-# ---------------------------------------------------------------------------
-# Evaluation
-# ---------------------------------------------------------------------------
 
 def _load_model(model_path, device):
     ckpt = torch.load(model_path, map_location=device, weights_only=False)
@@ -883,14 +469,20 @@ def _get_cached_model(model_path):
 
 def _resolve_ensemble_paths():
     """Return list of absolute ensemble model paths that exist on disk.
-    Silently skips missing files so a user with only a subset still works."""
+    Reads ensemble_config.json first if present (written by the comicml
+    training dashboard); falls back to the hardcoded ENSEMBLE_MODELS list.
+    Silently skips missing files so a partial ensemble still works."""
     base = Path(__file__).parent
-    out = []
-    for p in ENSEMBLE_MODELS:
-        fp = base / p
-        if fp.exists():
-            out.append(fp)
-    return out
+    config_path = base / "ensemble_config.json"
+    if config_path.exists():
+        try:
+            import json as _json
+            names = _json.loads(config_path.read_text()).get("models", [])
+        except Exception:
+            names = ENSEMBLE_MODELS
+    else:
+        names = ENSEMBLE_MODELS
+    return [base / p for p in names if (base / p).exists()]
 
 
 def _get_cached_ensemble():
@@ -1013,111 +605,6 @@ def detect_page_bounds_hybrid(image, dpi=600, model_path=None,
     }
 
 
-def evaluate(args):
-    device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
-    model_path = args.model or MODEL_FILE
-    model, ckpt = _load_model(model_path, device)
-    print(f"Loaded model from {model_path} (trained {ckpt.get('epoch', '?')} epochs, "
-          f"best val {ckpt.get('val_px', '?'):.2f} px)")
-
-    # Production ensemble for hybrid eval (matches detect_page_bounds_hybrid).
-    # Only used when --hybrid and --model is not explicitly overridden.
-    ensemble_models = []
-    if args.hybrid and not args.model:
-        ensemble_models, _ = _get_cached_ensemble()
-        if len(ensemble_models) >= 2:
-            print(f"Hybrid path uses production ensemble: {len(ensemble_models)} models")
-        else:
-            ensemble_models = []
-
-    # Inward-crop post-shift in px (per-corner). Matches the axis-aligned
-    # bounding-box shift applied in detect_page_bounds_hybrid.
-    shift_x = float(getattr(args, "shift_x", 13.0))
-    shift_y = float(getattr(args, "shift_y", 11.0))
-    if args.hybrid and (shift_x != 0 or shift_y != 0):
-        print(f"Hybrid path applies inward shift: x={shift_x:g} y={shift_y:g} px")
-    _INWARD_X = [+1, -1, -1, +1]  # TL, TR, BR, BL
-    _INWARD_Y = [+1, +1, -1, -1]
-
-    entries = _load_entries()
-    holdout_dirs = ckpt.get("holdout_dirs", [])
-    if args.all:
-        eval_entries = [e for e in entries if e["has_correction"]]
-        print(f"Evaluating on ALL {len(eval_entries)} corrected pages")
-    else:
-        _, eval_entries = _split_entries(entries, ckpt.get("train_dirs", []), holdout_dirs)
-        eval_entries = [e for e in eval_entries if e["has_correction"]]
-        print(f"Evaluating on {len(eval_entries)} holdout pages ({holdout_dirs})")
-
-    cnn_dists = []
-    hybrid_dists = []
-    per_dir_cnn = {}
-    per_dir_hybrid = {}
-    for entry in eval_entries:
-        img = cv2.imread(entry["filepath"])
-        if img is None:
-            continue
-        if entry["gt_rotate180"]:
-            img = cv2.rotate(img, cv2.ROTATE_180)
-        cnn_pred, disagreements = predict_corners_with_disagreement(
-            model, device, img)
-        gt = entry["gt_corners"]
-
-        cnn_d = np.mean([np.hypot(p[0] - g[0], p[1] - g[1]) for p, g in zip(cnn_pred, gt)])
-        cnn_dists.append(cnn_d)
-
-        if args.hybrid:
-            dpi = entry.get("dpi", 600)
-            # Use ensemble for the hybrid path if configured
-            if ensemble_models:
-                ens_pred, ens_dis = predict_corners_ensemble(ensemble_models, device, img)
-                hyb_pred = refine_corners_linefit(img, ens_pred, dpi=dpi,
-                                                  tta_disagreements=ens_dis)
-            else:
-                hyb_pred = refine_corners_linefit(img, cnn_pred, dpi=dpi,
-                                                  tta_disagreements=disagreements)
-            # Apply inward crop shift per-corner
-            if shift_x != 0 or shift_y != 0:
-                hyb_pred = [[p[0] + shift_x * _INWARD_X[i],
-                             p[1] + shift_y * _INWARD_Y[i]]
-                            for i, p in enumerate(hyb_pred)]
-            hyb_d = np.mean([np.hypot(p[0] - g[0], p[1] - g[1]) for p, g in zip(hyb_pred, gt)])
-            hybrid_dists.append(hyb_d)
-
-        name = entry["scan_dir"].rsplit("/", 1)[-1]
-        per_dir_cnn.setdefault(name, []).append(cnn_d)
-        if args.hybrid:
-            per_dir_hybrid.setdefault(name, []).append(hyb_d)
-
-    def _report(title, distances, per_dir):
-        d = np.array(distances)
-        print(f"\n=== {title} ===")
-        print(f"Pages evaluated:  {len(d)}")
-        print(f"Mean corner err:  {d.mean():7.2f} px")
-        print(f"Median corner err:{np.median(d):7.2f} px")
-        print(f"P95 corner err:   {np.percentile(d, 95):7.2f} px")
-        print(f"Max corner err:   {d.max():7.2f} px")
-        print(f"\nPer-directory:")
-        for name in sorted(per_dir):
-            v = np.array(per_dir[name])
-            print(f"  {name:<12s}  n={len(v):<3d}  mean={v.mean():7.2f} px  "
-                  f"median={np.median(v):7.2f} px  max={v.max():7.2f} px")
-
-    _report("CNN Corner-Regressor", cnn_dists, per_dir_cnn)
-    if args.hybrid:
-        _report("Hybrid (CNN + edge snap)", hybrid_dists, per_dir_hybrid)
-        cnn_arr = np.array(cnn_dists)
-        hyb_arr = np.array(hybrid_dists)
-        delta = cnn_arr - hyb_arr
-        print(f"\n--- Hybrid vs CNN improvement ---")
-        print(f"  Mean:   {cnn_arr.mean():6.2f} → {hyb_arr.mean():6.2f} px  ({delta.mean():+.2f})")
-        print(f"  Median: {np.median(cnn_arr):6.2f} → {np.median(hyb_arr):6.2f} px")
-        print(f"  P95:    {np.percentile(cnn_arr, 95):6.2f} → {np.percentile(hyb_arr, 95):6.2f} px")
-        improved = (delta > 0).sum()
-        worsened = (delta < 0).sum()
-        print(f"  {improved}/{len(delta)} pages improved, {worsened} worsened")
-
-
 def predict_cli(args):
     device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
     model, _ = _load_model(args.model or MODEL_FILE, device)
@@ -1133,56 +620,16 @@ def predict_cli(args):
 # ---------------------------------------------------------------------------
 
 def main():
+    """CLI entry point — inference only. For training, use the comicml project."""
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="cmd", required=True)
 
-    p_train = sub.add_parser("train")
-    p_train.add_argument("--train", default="DS9E18,DS9E19,DS9E21,DS9E22",
-                         help="Comma-separated scan dir names for training")
-    p_train.add_argument("--holdout", default="DS9E20,DS9E23",
-                         help="Comma-separated scan dir names held out for validation")
-    p_train.add_argument("--epochs", type=int, default=60)
-    p_train.add_argument("--batch-size", type=int, default=8)
-    p_train.add_argument("--lr", type=float, default=1e-4)
-    p_train.add_argument("--num-workers", type=int, default=4)
-    p_train.add_argument("--input-size", type=int, default=INPUT_SIZE,
-                         help="CNN input resolution (default 512; 768 trades 2.25x time for ~30%% better localization)")
-    p_train.add_argument("--warm-restarts", type=int, default=0,
-                         help="Cosine warm restart period in epochs (0 = plain cosine decay)")
-    p_train.add_argument("--seed", type=int, default=None,
-                         help="Random seed for reproducibility / multi-seed ensemble training")
-    p_train.add_argument("--output", type=str, default=None,
-                         help=f"Output model path (default: {MODEL_FILE.name})")
-    p_train.add_argument("--heatmap", action="store_true",
-                         help="Use heatmap regression head (sub-pixel soft-argmax) instead of direct coord regression")
-    p_train.add_argument("--hmap-sigma", type=float, default=2.0,
-                         help="Gaussian sigma for heatmap regularizer (in heatmap-pixels)")
-    p_train.add_argument("--hmap-reg", type=float, default=1.0,
-                         help="Weight of the heatmap-shape regularizer (DSNT-style). 0 = coord loss only.")
-
-    p_eval = sub.add_parser("eval")
-    p_eval.add_argument("--model", default=None)
-    p_eval.add_argument("--all", action="store_true",
-                        help="Evaluate on all corrected pages (not just holdout)")
-    p_eval.add_argument("--hybrid", action="store_true",
-                        help="Also evaluate the CNN+edge-snap hybrid detector")
-    p_eval.add_argument("--shift-x", type=float, default=13.0,
-                        dest="shift_x",
-                        help="Inward X post-shift px (default 13, 0 to disable)")
-    p_eval.add_argument("--shift-y", type=float, default=11.0,
-                        dest="shift_y",
-                        help="Inward Y post-shift px (default 11, 0 to disable)")
-
-    p_pred = sub.add_parser("predict")
+    p_pred = sub.add_parser("predict", help="Predict corners for a single image")
     p_pred.add_argument("image")
     p_pred.add_argument("--model", default=None)
 
     args = parser.parse_args()
-    if args.cmd == "train":
-        train(args)
-    elif args.cmd == "eval":
-        evaluate(args)
-    elif args.cmd == "predict":
+    if args.cmd == "predict":
         predict_cli(args)
 
 

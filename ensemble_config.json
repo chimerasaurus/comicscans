@@ -1,0 +1,7 @@
+{
+  "models": [
+    "comicml_model_reg_768_956pg.pt",
+    "comicml_model_reg_768_1000pg.pt",
+    "comicml_model_reg_768_1420pg_e280.pt"
+  ]
+}

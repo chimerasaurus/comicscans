@@ -408,13 +408,30 @@ function getPageData(pageIndex) {
 
 /** Load detection data into the overlay. */
 function loadDetectionOverlay(pageIndex) {
+    exitCornerEdit(false); // discard any in-progress edit when changing pages
     const data = getPageData(pageIndex);
     // Detected corners always come from the original detection (never from override)
     const detection = state.detections[pageIndex];
     const scale = state.editorScale;
-    displayDetectedCorners = (detection && detection.detected_corners)
-        ? detection.detected_corners.map(([x, y]) => [x * scale, y * scale])
-        : null;
+
+    if (detection && detection.detected_corners) {
+        // detected_corners are in the coordinate space of the image as it was at
+        // detection time (i.e. after detection.rotate180 was applied).
+        // If the user has since manually flipped rotate180 to a different value,
+        // mirror the corners 180° to match the currently displayed orientation.
+        const detR180  = detection.rotate180 || false;
+        const dispR180 = data ? (data.rotate180 || false) : false;
+        const needFlip = detR180 !== dispR180;
+        const cW = dom.overlayCanvas.width;
+        const cH = dom.overlayCanvas.height;
+        displayDetectedCorners = detection.detected_corners.map(([x, y]) => {
+            const sx = x * scale;
+            const sy = y * scale;
+            return needFlip ? [cW - sx, cH - sy] : [sx, sy];
+        });
+    } else {
+        displayDetectedCorners = null;
+    }
 
     if (!data || !data.corners) {
         // No detection yet — clear overlay and set defaults
@@ -569,17 +586,70 @@ async function syncAllOverridesToServer() {
     }
 }
 
-/** Update the corner coordinate readout in the controls panel. */
+/** Update the corner coordinate display spans (and hidden inputs) in the controls panel. */
 function updateCornerDisplay() {
     const scale = state.editorScale;
     for (let i = 0; i < 4; i++) {
-        const el = document.getElementById(`corner-${i}`);
-        if (el && displayCorners[i]) {
-            const ox = Math.round(displayCorners[i][0] / scale);
-            const oy = Math.round(displayCorners[i][1] / scale);
-            el.textContent = `(${ox}, ${oy})`;
-        }
+        if (!displayCorners[i]) continue;
+        const ox = Math.round(displayCorners[i][0] / scale);
+        const oy = Math.round(displayCorners[i][1] / scale);
+        const disp = document.getElementById(`corner-${i}-disp`);
+        if (disp) disp.textContent = `(${ox}, ${oy})`;
+        // Don't overwrite the inputs the user is currently typing into
+        if (i === _editingCorner) continue;
+        const elX = document.getElementById(`corner-${i}-x`);
+        const elY = document.getElementById(`corner-${i}-y`);
+        if (elX) elX.value = ox;
+        if (elY) elY.value = oy;
     }
+}
+
+/** Apply a manually typed corner coordinate back to the canvas. */
+function applyCornerInput(cornerIndex) {
+    const scale = state.editorScale;
+    if (!scale || state.currentPage === null) return;
+    const elX = document.getElementById(`corner-${cornerIndex}-x`);
+    const elY = document.getElementById(`corner-${cornerIndex}-y`);
+    if (!elX || !elY) return;
+    const x = parseFloat(elX.value);
+    const y = parseFloat(elY.value);
+    if (isNaN(x) || isNaN(y)) return;
+    displayCorners[cornerIndex] = [x * scale, y * scale];
+    drawOverlay();
+    saveCorners();
+    updateCornerPreviews();
+    syncPageToServer(state.currentPage);
+}
+
+// Which corner row (0-3) is currently being edited, or null.
+let _editingCorner = null;
+
+function _cornerRow(i) {
+    return document.querySelectorAll('#corner-display .corner-row')[i];
+}
+
+function enterCornerEdit(i) {
+    if (_editingCorner === i) return;
+    if (_editingCorner !== null) exitCornerEdit(false);
+    _editingCorner = i;
+    _cornerRow(i).classList.add('editing');
+    const elX = document.getElementById(`corner-${i}-x`);
+    elX.focus();
+    elX.select();
+}
+
+/** Close the currently open corner edit. save=true commits the typed value. */
+function exitCornerEdit(save) {
+    const i = _editingCorner;
+    if (i === null) return;
+    _editingCorner = null;
+    if (save) applyCornerInput(i);
+    _cornerRow(i).classList.remove('editing');
+}
+
+/** Commit and close whichever corner input is open (called by Apply/Reset/Nav). */
+function commitCornerEdits() {
+    exitCornerEdit(true);
 }
 
 // ===== Zoom Lens =====
@@ -890,6 +960,7 @@ dom.btnRotate180.addEventListener('click', () => {
 
 // Reset to auto-detected values
 dom.btnReset.addEventListener('click', () => {
+    commitCornerEdits();
     const pageIndex = state.currentPage;
     if (pageIndex === null) return;
 
@@ -928,6 +999,7 @@ dom.btnPreview.addEventListener('click', async () => {
 
 // Apply button — save overrides to server
 dom.btnApply.addEventListener('click', async () => {
+    commitCornerEdits();
     const pageIndex = state.currentPage;
     if (pageIndex === null) return;
 
@@ -950,8 +1022,33 @@ dom.btnApply.addEventListener('click', async () => {
 });
 
 // Navigation: Prev / Next
-dom.btnPrev.addEventListener('click', () => navigateEditor(-1));
-dom.btnNext.addEventListener('click', () => navigateEditor(1));
+dom.btnPrev.addEventListener('click', () => { commitCornerEdits(); navigateEditor(-1); });
+dom.btnNext.addEventListener('click', () => { commitCornerEdits(); navigateEditor(1); });
+
+// Corner coordinate click-to-edit
+for (let i = 0; i < 4; i++) {
+    document.getElementById(`corner-${i}-disp`).addEventListener('click', () => enterCornerEdit(i));
+
+    const elX = document.getElementById(`corner-${i}-x`);
+    const elY = document.getElementById(`corner-${i}-y`);
+
+    for (const el of [elX, elY]) {
+        el.addEventListener('keydown', e => {
+            if (e.key === 'Enter')  { e.preventDefault(); exitCornerEdit(true); }
+            if (e.key === 'Escape') { e.preventDefault(); exitCornerEdit(false); updateCornerDisplay(); }
+        });
+        // Blur: exit only if focus left both inputs of this corner
+        el.addEventListener('blur', () => {
+            setTimeout(() => {
+                if (_editingCorner === null) return; // already exited
+                const a = document.activeElement;
+                const xEl = document.getElementById(`corner-${_editingCorner}-x`);
+                const yEl = document.getElementById(`corner-${_editingCorner}-y`);
+                if (a !== xEl && a !== yEl) exitCornerEdit(true);
+            }, 100);
+        });
+    }
+}
 
 function navigateEditor(delta) {
     if (state.currentPage === null) return;
